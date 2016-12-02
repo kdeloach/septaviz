@@ -1,0 +1,58 @@
+body {
+    margin: 0;
+}
+#map {
+    width: 100%;
+    height: 100%;
+}
+#btn-next {
+    position: absolute;
+    top: 100px;
+    left: 70px;
+    z-index: 1000;
+}
+#btn-prev {
+    position: absolute;
+    top: 100px;
+    left: 20px;
+    z-index: 1000;
+}
+
+.vehicle-marker-text {
+    width: 100px;
+    height: 100px;
+    line-height: 100px;
+    border-radius: 100px;
+    font-size: 50px;
+    font-weight: bold;
+    color: #fff;
+    text-align: center;
+    background: #000;
+}
+.vehicle-marker-text.northbound,
+.vehicle-marker-text.westbound { background-color: #ed1f24; }
+.vehicle-marker-text.southbound,
+.vehicle-marker-text.eastbound { background-color: #0072bc; }
+
+.vehicle-marker-arrow {
+    /* Assumes arrow revolves around a 100px radius */
+    /* Buffer of 30px outside radius */
+    position: absolute;
+    top: 50px; /* 100px / 2 */
+    left: -30px; /* -${buffer} */
+    margin-top: -20px; /* ${font-size} / 2 */
+    width: 160px; /* 100px + ${buffer} * 2 */
+    font-size: 40px;
+    text-align: right;
+    pointer-events: none;
+}
+.vehicle-marker-arrow.northbound,
+.vehicle-marker-arrow.westbound { color: #ed1f24; }
+.vehicle-marker-arrow.southbound,
+.vehicle-marker-arrow.eastbound { color: #0072bc; }
+
+.vehicle-marker-inner.xtiny { transform: scale(0.1); }
+.vehicle-marker-inner.tiny { transform: scale(0.2); }
+.vehicle-marker-inner.small { transform: scale(0.3); }
+.vehicle-marker-inner.medium { transform: scale(0.4); }
+.vehicle-marker-inner.large { }
