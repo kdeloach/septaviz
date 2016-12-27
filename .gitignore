@@ -88,6 +88,5 @@ ENV/
 # Rope project settings
 .ropeproject
 
-src/data/*.json
-src/data/db.sqlite3
-src/static/route/*.kml
+data/*.json
+data/db.sqlite3

@@ -2,25 +2,11 @@ var _map;
 var _vehicleLayer;
 var _data;
 
-function createPoint(trip) {
+function createPoint(loc) {
     return {
-        lat: parseFloat(trip.lat),
-        lng: parseFloat(trip.lng)
+        lat: parseFloat(loc.lat),
+        lng: parseFloat(loc.lng)
     };
-}
-
-function nextDistinctTrip(firstTrip, trips) {
-    for (var i = 0; i < trips.length; i++) {
-        var trip = trips[i];
-        if (trip.id < firstTrip.id) {
-            var match = trip.lat === firstTrip.lat
-                && trip.lng === firstTrip.lng;
-            if (!match) {
-                return trip;
-            }
-        }
-    }
-    return null;
 }
 
 function calculateAngle(a, b) {
@@ -31,18 +17,17 @@ function calculateAngle(a, b) {
     return angle * -1;
 }
 
-function markerAngle(trip, allTrips) {
-    var prevTrip = nextDistinctTrip(trip, allTrips);
-    if (prevTrip) {
-        var a = createPoint(trip);
-        var b = createPoint(prevTrip);
+function calculateMarkerAngle(loc, prevLoc) {
+    if (prevLoc) {
+        var a = createPoint(loc);
+        var b = createPoint(prevLoc);
         return calculateAngle(b, a);
     }
-    switch (trip.direction.toLocaleLowerCase()) {
-        case 'northbound': return -90;
-        case 'southbound': return 90;
+    switch (loc.direction.toLocaleLowerCase()) {
         case 'eastbound': return 0;
+        case 'southbound': return 90;
         case 'westbound': return 180;
+        case 'northbound': return 270;
     }
     return false;
 }
@@ -61,24 +46,32 @@ function getMarkerSize() {
    return 'large';
 }
 
-function getTextClassName(trip) {
+function getTextClassName(loc) {
     var result = 'vehicle-marker-text';
-    result += ' ' + trip.direction.toLocaleLowerCase();
+    result += ' ' + loc.direction.toLocaleLowerCase();
     return result;
 }
 
-function getArrowClassName(trip) {
+function getArrowClassName(loc) {
     var result = 'vehicle-marker-arrow';
-    result += ' ' + trip.direction.toLocaleLowerCase();
+    result += ' ' + loc.direction.toLocaleLowerCase();
     return result;
 }
 
-function createMarker(trip, allTrips) {
-    var point = createPoint(trip);
-    var textClassName = getTextClassName(trip);
-    var arrowClassName = getArrowClassName(trip);
-    var minutesAgo = Math.round(trip.offset_sec / 60);
-    var angle = markerAngle(trip, allTrips);
+function getPrevLocation(locations) {
+    var next = locations[1];
+    return next && next[0];
+}
+
+function createMarker(locations) {
+    var loc = locations[0];
+    var prevLoc = getPrevLocation(locations);
+
+    var point = createPoint(loc);
+    var textClassName = getTextClassName(loc);
+    var arrowClassName = getArrowClassName(loc);
+    var minutesAgo = Math.round(loc.offset_sec / 60);
+    var angle = calculateMarkerAngle(loc, prevLoc);
 
     var html = [];
     html.push('<div class="vehicle-marker-inner ');
@@ -87,7 +80,7 @@ function createMarker(trip, allTrips) {
     html.push('<div class="');
     html.push(textClassName);
     html.push('">');
-    html.push(trip.route_num);
+    html.push(loc.route_num);
     html.push('</div>');
     if (angle !== false) {
         html.push('<div class="');
@@ -101,25 +94,27 @@ function createMarker(trip, allTrips) {
     html = html.join('');
 
     var popupHtml = [];
-    popupHtml.push(trip.vehicle_id);
+    popupHtml.push(loc.vehicle_id);
     popupHtml.push(' ');
-    popupHtml.push(trip.direction);
+    popupHtml.push(loc.direction);
+    popupHtml.push(' ');
+    popupHtml.push(loc.reported_at_utc);
     popupHtml.push(' (');
     popupHtml.push(minutesAgo);
     popupHtml.push(' minutes ago)');
     popupHtml = popupHtml.join('');
 
-    return new L.Marker(point, {
-            icon: new L.DivIcon({
-                className: 'vehicle-marker',
-                iconSize: [100, 100],
-                html: html
-            })
+    var marker = new L.Marker(point, {
+        icon: new L.DivIcon({
+            className: 'vehicle-marker',
+            iconSize: [100, 100],
+            html: html
         })
-        .bindPopup(popupHtml);
+    }).bindPopup(popupHtml);
+    return marker;
 }
 
-function drawVehicles(vehicleTrips) {
+function drawVehicles(vehicles) {
     var firstTime = !!!_vehicleLayer;
     if (firstTime) {
         _vehicleLayer = new L.FeatureGroup();
@@ -127,19 +122,23 @@ function drawVehicles(vehicleTrips) {
     }
     _vehicleLayer.clearLayers();
 
-    _.each(vehicleTrips, function(trips, vehicleId) {
-        var firstTrip = trips[0];
-        var marker = createMarker(firstTrip, trips);
+    _.each(vehicles, function(locations, vehicleId) {
+        var marker = createMarker(locations);
         _vehicleLayer.addLayer(marker);
     });
 
     if (firstTime) {
-        _map.fitBounds(_vehicleLayer.getBounds());
+        fitBounds(_vehicleLayer.getBounds());
+    }
+}
+
+function fitBounds(bounds) {
+    if (bounds.isValid()) {
+        _map.fitBounds(bounds);
     }
 }
 
 function redraw() {
-    console.log(_map.getZoom());
     drawVehicles(_data);
 }
 
@@ -149,8 +148,10 @@ function update(data) {
 }
 
 function init() {
-    _map = new L.Map('map');
-    _map.setZoom(16);
+    _map = new L.Map('map', {
+        center: [39.952757, -75.163826],
+        zoom: 16
+    });
 
     L.tileLayer('http://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png', {
         attribution: '&copy; <a href="http://www.openstreetmap.org/copyright">OpenStreetMap</a> &copy; <a href="http://cartodb.com/attributions">CartoDB</a>',

@@ -1,29 +1,24 @@
 version: '2'
 services:
-    base:
-        image: kdeloach/septa-viz
-        build:
-            context: ./src
-        entrypoint: echo 0
-
     website:
         image: kdeloach/septa-viz
-        depends_on:
-            - base
+        build:
+            context: ./src/app
         volumes:
-            - ./src:/usr/src
+            - ./data:/usr/data
+            - ./src/app:/usr/src
+        env_file: .env
         ports:
             - 5000:5000
-        environment:
-            FLASK_DEBUG: 1
-            FLASK_APP: website.py
-        entrypoint: flask run --host=0.0.0.0
+        command: runserver 0.0.0.0:5000
 
     collect:
         image: kdeloach/septa-viz
         depends_on:
-            - base
+            - website
         volumes:
-            - ./src:/usr/src
+            - ./data:/usr/data
+            - ./src/app:/usr/src
+        env_file: .env
         restart: always
-        entrypoint: ./collect.py
+        command: collect

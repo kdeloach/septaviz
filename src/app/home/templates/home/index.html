@@ -1,9 +1,11 @@
+{% load staticfiles %}
 <html>
 <head>
 <title>SEPTA Viz</title>
+<link rel="shortcut icon" href="{% static 'favicon.ico' %}">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.0.2/leaflet.css" />
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css" />
-<link rel="stylesheet" href="static/style.css" />
+<link rel="stylesheet" href="{% static 'style.css' %}" />
 </head>
 <body>
 <div id="map">Loading...</div>
@@ -12,9 +14,9 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.1.1/jquery.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.0.2/leaflet.js"></script>
 <script src="https://api.tiles.mapbox.com/mapbox.js/plugins/leaflet-omnivore/v0.3.1/leaflet-omnivore.min.js"></script>
-<script src="{{ url_for('static', filename='index.js') }}"></script>
+<script src="{% static 'index.js' %}"></script>
 <script>
-update({{ vehicle_trips|safe }});
+update({{ bus_routes|safe }});
 </script>
 </body>
 </html>
