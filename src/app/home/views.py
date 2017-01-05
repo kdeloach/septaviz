@@ -9,7 +9,6 @@ import operator
 
 from datetime import timedelta
 
-from django.http import HttpResponse
 from django.shortcuts import render
 from django.utils import timezone
 
@@ -53,6 +52,7 @@ def index_view(request):
 def route_view(request, route_num):
     bus_routes = fetch_bus_routes(route_num=route_num)
     context = {
+        'route_num': route_num,
         'bus_routes': json.dumps(bus_routes),
     }
     return render(request, 'home/index.html', context)

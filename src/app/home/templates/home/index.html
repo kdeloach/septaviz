@@ -17,6 +17,9 @@
 <script src="{% static 'index.js' %}"></script>
 <script>
 update({{ bus_routes|safe }});
+{% if route_num %}
+drawRouteTrace('{{ route_num }}');
+{% endif %}
 </script>
 </body>
 </html>

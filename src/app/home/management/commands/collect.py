@@ -7,6 +7,11 @@ import time
 import pytz
 import dateutil.parser
 import requests
+import os.path
+
+from datetime import timedelta
+
+from subprocess import call
 
 from django.db import transaction
 from django.db.models import Max
@@ -14,24 +19,49 @@ from django.utils import timezone
 from django.core.management import BaseCommand
 
 from home.models import Location
+from septaviz.settings import COMMON_STATIC_ROOT
 
 
 EST = pytz.timezone('US/Eastern')
 
+BUS_ROUTES = map(str, range(1, 151)) + [
+    '15B',
+    'C',
+    'G',
+    'H',
+    'XH',
+    'J',
+    'K',
+    'L',
+    'R',
+    'LUCYGR',
+    'HXH',
+]
 
-class Command(BaseCommand):
-    help='Download SEPTA API data'
 
-    def update_bus_locations(self):
-        """
-        Download and insert updated bus locations.
-        """
+class UpdateBusLocations(object):
+    """
+    Download and insert the latest bus locations at an interval.
+    """
+    def __init__(self):
+        self.last_ran_at = None
+
+    def should_run(self):
+        return not self.last_ran_at \
+                or self.last_ran_at >= timezone.now() - timedelta(minutes=1)
+
+    def run(self):
+        if not self.should_run():
+            return
+
         data = self.download_bus_locations()
         locations = list(self.parse_bus_locations(data))
         to_add = list(self.filter_bus_locations(locations))
         with transaction.atomic():
             Location.objects.bulk_create(to_add)
-            self.stdout.write('Inserted {} records'.format(len(to_add)))
+            print('Inserted {} records'.format(len(to_add)))
+
+        self.last_ran_at = timezone.now()
 
     def filter_bus_locations(self, locations):
         """
@@ -39,11 +69,11 @@ class Command(BaseCommand):
         existing locations.
         """
         latest_ids = Location.objects.values('vehicle_id') \
-                        .annotate(id=Max('id'))
+                .annotate(id=Max('id'))
         latest_ids = [row['id'] for row in latest_ids]
 
         latest_models = Location.objects.filter(id__in=latest_ids) \
-                        .values_list('vehicle_id', 'lat', 'lng')
+                .values_list('vehicle_id', 'lat', 'lng')
 
         lookup = {vehicle_id: (lat, lng)
                   for vehicle_id, lat, lng in latest_models}
@@ -58,7 +88,7 @@ class Command(BaseCommand):
                 yield loc
 
     def download_bus_locations(self):
-        self.stdout.write('Downloading...',)
+        print('Downloading bus locations...')
         url = 'http://www3.septa.org/hackathon/TransitViewAll'
         response = requests.get(url)
         return response.json()
@@ -70,7 +100,7 @@ class Command(BaseCommand):
         for reported_at_est, routes in data.iteritems():
             created_at_utc = timezone.now()
             reported_at_utc = dateutil.parser.parse(reported_at_est) \
-                .replace(tzinfo=EST).astimezone(pytz.utc)
+                    .replace(tzinfo=EST).astimezone(pytz.utc)
             for route in routes:
                 for route_num, locations in route.iteritems():
                     for location in locations:
@@ -87,8 +117,77 @@ class Command(BaseCommand):
                         loc.lng = location['lng']
                         yield loc
 
+
+class UpdateRouteTrace(object):
+    """
+    Download route trace GeoJSON for each route.
+    """
+    def __init__(self):
+        self.last_ran_at = None
+
+    def should_run(self):
+        return not self.last_ran_at \
+                or self.last_ran_at >= timezone.now() - timedelta(days=1)
+
+    def run(self):
+        if not self.should_run():
+            return
+
+        print('Updating route trace files')
+
+        for route_num in BUS_ROUTES:
+            if not self.route_trace_exists(route_num):
+                self.download_kml(route_num)
+                self.convert_kml(route_num)
+
+        self.last_ran_at = timezone.now()
+
+    def get_kml_path(self, route_num):
+        return os.path.join(COMMON_STATIC_ROOT, route_num + '.kml')
+
+    def get_json_path(self, route_num):
+        return os.path.join(COMMON_STATIC_ROOT, route_num + '.json')
+
+    def route_trace_exists(self, route_num):
+        path = self.get_json_path(route_num)
+        return os.path.exists(path)
+
+    def download_kml(self, route_num):
+        print('Downloading route trace {}...'.format(route_num))
+        url = 'http://www3.septa.org/transitview/kml/{}.kml'.format(route_num)
+        response = requests.get(url)
+
+        if not response.ok:
+            print('ERROR: Could not download route trace "{}"'.format(route_num))
+            return
+
+        path = self.get_kml_path(route_num)
+        with open(path, 'w') as fp:
+            fp.write(response.text)
+
+    def convert_kml(self, route_num):
+        kml_path = self.get_kml_path(route_num)
+        if not os.path.exists(kml_path):
+            print('ERROR: KML file does not exist for route trace "{}"'.format(route_num))
+            return
+
+        json_path = self.get_json_path(route_num)
+        result = call(['ogr2ogr', '-f', 'GeoJSON', json_path, kml_path])
+        print(result)
+
+
+class Command(BaseCommand):
+    help = 'Download SEPTA API data'
+
     def handle(self, *args, **options):
+        tasks = [
+            UpdateRouteTrace(),
+            UpdateBusLocations(),
+        ]
+
         while True:
-            self.update_bus_locations()
-            time.sleep(30)
-        self.stdout.write('Done')
+            for task in tasks:
+                task.run()
+            time.sleep(15)
+
+        print('Done')

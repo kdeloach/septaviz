@@ -1,5 +1,6 @@
 var _map;
 var _vehicleLayer;
+var _routeTraceLayer;
 var _data;
 
 function createPoint(loc) {
@@ -115,11 +116,6 @@ function createMarker(locations) {
 }
 
 function drawVehicles(vehicles) {
-    var firstTime = !!!_vehicleLayer;
-    if (firstTime) {
-        _vehicleLayer = new L.FeatureGroup();
-        _map.addLayer(_vehicleLayer);
-    }
     _vehicleLayer.clearLayers();
 
     _.each(vehicles, function(locations, vehicleId) {
@@ -127,9 +123,7 @@ function drawVehicles(vehicles) {
         _vehicleLayer.addLayer(marker);
     });
 
-    if (firstTime) {
-        fitBounds(_vehicleLayer.getBounds());
-    }
+    // fitBounds(_vehicleLayer.getBounds());
 }
 
 function fitBounds(bounds) {
@@ -147,17 +141,35 @@ function update(data) {
     redraw();
 }
 
+function drawRouteTrace(routeNum) {
+    $.getJSON('static/' + routeNum + '.json')
+        .then(function(geom) {
+            _routeTraceLayer.clearLayers();
+            _routeTraceLayer.addLayer(new L.GeoJSON(geom));
+        })
+        .catch(function() {
+            console.log('derp');
+        });
+}
+
 function init() {
     _map = new L.Map('map', {
         center: [39.952757, -75.163826],
         zoom: 16
     });
 
-    L.tileLayer('http://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png', {
+    var baseLayer = new L.TileLayer('http://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png', {
         attribution: '&copy; <a href="http://www.openstreetmap.org/copyright">OpenStreetMap</a> &copy; <a href="http://cartodb.com/attributions">CartoDB</a>',
         subdomains: 'abcd',
         maxZoom: 19
-    }).addTo(_map);
+    });
+    _map.addLayer(baseLayer);
+
+    _vehicleLayer = new L.FeatureGroup();
+    _routeTraceLayer = new L.FeatureGroup();
+
+    _map.addLayer(_vehicleLayer);
+    _map.addLayer(_routeTraceLayer);
 
     _map.on('zoomend', redraw);
 }

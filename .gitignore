@@ -89,4 +89,6 @@ ENV/
 .ropeproject
 
 data/*.json
-data/db.sqlite3
+data/*.sqlite3
+static/*.kml
+static/*.json

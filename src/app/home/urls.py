@@ -5,9 +5,9 @@ from __future__ import division
 
 from django.conf.urls import url
 
-from . import views
+from home import views
 
 urlpatterns = [
-    url(r'^$', views.index_view, name='index'),
-    url(r'^(?P<route_num>[a-z0-9]+)$', views.route_view, name='index'),
+    url(r'^$', views.index_view, name='all_routes'),
+    url(r'^(?P<route_num>[a-z0-9]+)$', views.route_view, name='route_num'),
 ]
