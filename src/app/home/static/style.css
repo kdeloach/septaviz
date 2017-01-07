@@ -29,10 +29,10 @@ body {
     text-align: center;
     background: #000;
 }
-.vehicle-marker-text.northbound,
-.vehicle-marker-text.westbound { background-color: #ed1f24; }
-.vehicle-marker-text.southbound,
-.vehicle-marker-text.eastbound { background-color: #0072bc; }
+.vehicle-northbound .vehicle-marker-text,
+.vehicle-westbound .vehicle-marker-text { background-color: #ed1f24; }
+.vehicle-southbound .vehicle-marker-text,
+.vehicle-eastbound .vehicle-marker-text { background-color: #0072bc; }
 
 .vehicle-marker-arrow {
     /* Assumes arrow revolves around a 100px radius */
@@ -46,13 +46,17 @@ body {
     text-align: right;
     pointer-events: none;
 }
-.vehicle-marker-arrow.northbound,
-.vehicle-marker-arrow.westbound { color: #ed1f24; }
-.vehicle-marker-arrow.southbound,
-.vehicle-marker-arrow.eastbound { color: #0072bc; }
+.vehicle-northbound .vehicle-marker-arrow,
+.vehicle-westbound .vehicle-marker-arrow { color: #ed1f24; }
+.vehicle-southbound .vehicle-marker-arrow,
+.vehicle-eastbound .vehicle-marker-arrow { color: #0072bc; }
 
-.vehicle-marker-inner.xtiny { transform: scale(0.1); }
-.vehicle-marker-inner.tiny { transform: scale(0.2); }
-.vehicle-marker-inner.small { transform: scale(0.3); }
-.vehicle-marker-inner.medium { transform: scale(0.4); }
-.vehicle-marker-inner.large { }
+.vehicle-inactive {
+    opacity: 0.50;
+}
+.vehicle-inactive .vehicle-marker-arrow {
+    color: #ccc;
+}
+.vehicle-inactive .vehicle-marker-text {
+    background-color: #ccc;
+}

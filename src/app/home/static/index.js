@@ -1,12 +1,32 @@
+// TODO:
+// Draw "predicted" position (smooth transition?)
+// Fit bounds fix
+// Homepage (select route)
+// Snap to point on route?
+// Draw arrow based on previous (route) point?
+// Incremental polling
+// Filter out "points" during KML processing (ex. route 27)
+// Add geolocate button
+
+var POLL_INTERVAL_MS = 15 * 1000;
+
 var _map;
-var _vehicleLayer;
-var _routeTraceLayer;
 var _data;
+var _vehicleLayer;
+var _vehicleTrailLayer;
+var _routeTraceLayer;
+var _selectedVehicleID;
+var _paused = false;
+
+function toggleVehicle(vehicleID) {
+    _selectedVehicleID = _selectedVehicleID === vehicleID ? null : vehicleID;
+    redraw();
+}
 
 function createPoint(loc) {
     return {
-        lat: parseFloat(loc.lat),
-        lng: parseFloat(loc.lng)
+        lat: loc.lat,
+        lng: loc.lng
     };
 }
 
@@ -47,48 +67,42 @@ function getMarkerSize() {
    return 'large';
 }
 
-function getTextClassName(loc) {
-    var result = 'vehicle-marker-text';
-    result += ' ' + loc.direction.toLocaleLowerCase();
-    return result;
-}
-
-function getArrowClassName(loc) {
-    var result = 'vehicle-marker-arrow';
-    result += ' ' + loc.direction.toLocaleLowerCase();
-    return result;
-}
-
-function getPrevLocation(locations) {
-    var next = locations[1];
-    return next && next[0];
+function getVehicleCssClass(loc) {
+    var result = [];
+    result.push(getMarkerSize());
+    if (_selectedVehicleID) {
+        if (loc.vehicle_id === _selectedVehicleID) {
+            result.push('vehicle-active');
+        } else {
+            result.push('vehicle-inactive');
+        }
+    }
+    if (loc.direction.length) {
+        result.push('vehicle-' + loc.direction.toLocaleLowerCase());
+    }
+    return result.join(' ');
 }
 
 function createMarker(locations) {
     var loc = locations[0];
-    var prevLoc = getPrevLocation(locations);
+
+    var prevLoc = locations[1];
+    prevLoc = prevLoc && prevLoc[0];
 
     var point = createPoint(loc);
-    var textClassName = getTextClassName(loc);
-    var arrowClassName = getArrowClassName(loc);
     var minutesAgo = Math.round(loc.offset_sec / 60);
     var angle = calculateMarkerAngle(loc, prevLoc);
+    var arrowTransform = 'transform: rotate(' + angle + 'deg)';
 
     var html = [];
-    html.push('<div class="vehicle-marker-inner ');
-    html.push(getMarkerSize());
-    html.push('">');
-    html.push('<div class="');
-    html.push(textClassName);
-    html.push('">');
+    html.push('<div class="vehicle-marker-inner">');
+    html.push('<div class="vehicle-marker-text">');
     html.push(loc.route_num);
     html.push('</div>');
     if (angle !== false) {
-        html.push('<div class="');
-        html.push(arrowClassName);
-        html.push('" style="transform: rotate(');
-        html.push(angle);
-        html.push('deg)">');
+        html.push('<div class="vehicle-marker-arrow" style="');
+        html.push(arrowTransform);
+        html.push('">');
         html.push('<i class="fa fa-chevron-right"></i></div>');
     }
     html.push('</div>');
@@ -107,23 +121,58 @@ function createMarker(locations) {
 
     var marker = new L.Marker(point, {
         icon: new L.DivIcon({
-            className: 'vehicle-marker',
+            className: 'vehicle-marker ' + getVehicleCssClass(loc),
             iconSize: [100, 100],
             html: html
         })
     }).bindPopup(popupHtml);
+
+    // TODO: Redraw on click breaks the marker popup
+    marker.on('click', function() {
+        toggleVehicle(loc.vehicle_id);
+    });
+
     return marker;
 }
 
 function drawVehicles(vehicles) {
     _vehicleLayer.clearLayers();
 
-    _.each(vehicles, function(locations, vehicleId) {
+    _.each(vehicles, function(locations, vehicleID) {
         var marker = createMarker(locations);
         _vehicleLayer.addLayer(marker);
     });
 
     // fitBounds(_vehicleLayer.getBounds());
+}
+
+function drawVehicleTrails(vehicles) {
+    _vehicleTrailLayer.clearLayers();
+
+    var i = 0;
+    var locs = vehicles[_selectedVehicleID];
+
+    // Skip first location.
+    locs = locs && locs[1];
+
+    while (locs && i < 10) {
+        var loc = locs[0];
+        var point = createPoint(loc);
+        var radius = Math.max(1, (10 - i) * 1.161);
+
+        var dot = new L.CircleMarker(point, {
+            stroke: false,
+            fillOpacity: 1,
+            fillColor: '#000',
+            radius: radius
+        });
+        dot.bindPopup(moment(loc.reported_at_utc).fromNow());
+
+        _vehicleTrailLayer.addLayer(dot);
+
+        locs = locs[1];
+        i++;
+    }
 }
 
 function fitBounds(bounds) {
@@ -134,9 +183,14 @@ function fitBounds(bounds) {
 
 function redraw() {
     drawVehicles(_data);
+    drawVehicleTrails(_data);
 }
 
 function update(data) {
+    if (_paused) {
+        return;
+    }
+    // TODO: Apply incremental updates
     _data = data;
     redraw();
 }
@@ -145,17 +199,28 @@ function drawRouteTrace(routeNum) {
     $.getJSON('static/' + routeNum + '.json')
         .then(function(geom) {
             _routeTraceLayer.clearLayers();
-            _routeTraceLayer.addLayer(new L.GeoJSON(geom));
-        })
-        .catch(function() {
-            console.log('derp');
+            var layer = new L.GeoJSON(geom);
+            _routeTraceLayer.addLayer(layer);
         });
 }
 
-function init() {
+function startPolling() {
+    var url = document.location.href + '.json';
+    function poll() {
+        $.getJSON(url).then(update)
+            // Ignore errors.
+            .catch(function() {})
+            .then(function() {
+                setTimeout(poll, POLL_INTERVAL_MS);
+            });
+    }
+    poll();
+}
+
+function initMap() {
     _map = new L.Map('map', {
         center: [39.952757, -75.163826],
-        zoom: 16
+        zoom: 13
     });
 
     var baseLayer = new L.TileLayer('http://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png', {
@@ -166,12 +231,20 @@ function init() {
     _map.addLayer(baseLayer);
 
     _vehicleLayer = new L.FeatureGroup();
+    _vehicleTrailLayer = new L.FeatureGroup();
     _routeTraceLayer = new L.FeatureGroup();
 
     _map.addLayer(_vehicleLayer);
+    _map.addLayer(_vehicleTrailLayer);
     _map.addLayer(_routeTraceLayer);
-
-    _map.on('zoomend', redraw);
 }
 
-init();
+function init(routeNum) {
+    initMap();
+
+    if (routeNum.length) {
+        drawRouteTrace(routeNum);
+    }
+
+    startPolling();
+}

@@ -9,7 +9,6 @@ https://docs.djangoproject.com/en/1.10/topics/settings/
 For the full list of settings and their values, see
 https://docs.djangoproject.com/en/1.10/ref/settings/
 """
-
 import os
 
 # Build paths inside the project like this: os.path.join(BASE_DIR, ...)
@@ -127,4 +126,40 @@ COMMON_STATIC_ROOT = '/usr/share/static'
 
 STATICFILES_DIRS = [
     COMMON_STATIC_ROOT,
+]
+
+LOGGING = {
+    'version': 1,
+    'disable_existing_loggers': False,
+    'formatters': {
+        'verbose': {
+            'format': '%(asctime)s %(levelname)s %(message)s'
+        },
+    },
+    'handlers': {
+        'console': {
+            'class': 'logging.StreamHandler',
+            'formatter': 'verbose',
+        },
+    },
+    'loggers': {
+        'home': {
+            'handlers': ['console'],
+            'level': 'DEBUG',
+        },
+    },
+}
+
+BUS_ROUTES = map(str, range(1, 151)) + [
+    '15B',
+    'C',
+    'G',
+    'H',
+    'XH',
+    'J',
+    'K',
+    'L',
+    'R',
+    'LUCYGR',
+    'HXH',
 ]

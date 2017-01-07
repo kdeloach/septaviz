@@ -9,10 +9,16 @@ import operator
 
 from datetime import timedelta
 
+from django.http import Http404, JsonResponse
 from django.shortcuts import render
 from django.utils import timezone
 
+from septaviz.settings import BUS_ROUTES
 from home.models import Location
+
+
+class BusRouteUndefined(ValueError):
+    pass
 
 
 def fetch_bus_routes(route_num=None):
@@ -24,7 +30,9 @@ def fetch_bus_routes(route_num=None):
         .filter(reported_at_utc__gte=timezone.now() - timedelta(hours=2)) \
         .order_by('vehicle_id', 'created_at_utc')
 
-    if route_num:
+    if route_num and route_num != 'all':
+        if route_num not in BUS_ROUTES:
+            raise BusRouteUndefined()
         all_locs = all_locs.filter(route_num=route_num)
 
     location_key = operator.attrgetter('vehicle_id')
@@ -42,7 +50,10 @@ def fetch_bus_routes(route_num=None):
 
 
 def index_view(request):
-    bus_routes = fetch_bus_routes()
+    try:
+        bus_routes = fetch_bus_routes()
+    except BusRouteUndefined:
+        raise Http404()
     context = {
         'bus_routes': json.dumps(bus_routes),
     }
@@ -50,9 +61,20 @@ def index_view(request):
 
 
 def route_view(request, route_num):
-    bus_routes = fetch_bus_routes(route_num=route_num)
+    try:
+        bus_routes = fetch_bus_routes(route_num=route_num)
+    except BusRouteUndefined:
+        raise Http404()
     context = {
         'route_num': route_num,
         'bus_routes': json.dumps(bus_routes),
     }
     return render(request, 'home/index.html', context)
+
+
+def route_json_view(request, route_num):
+    try:
+        bus_routes = fetch_bus_routes(route_num=route_num)
+    except BusRouteUndefined:
+        raise Http404()
+    return JsonResponse(bus_routes)

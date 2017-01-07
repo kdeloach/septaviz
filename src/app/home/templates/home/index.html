@@ -16,10 +16,7 @@
 <script src="https://api.tiles.mapbox.com/mapbox.js/plugins/leaflet-omnivore/v0.3.1/leaflet-omnivore.min.js"></script>
 <script src="{% static 'index.js' %}"></script>
 <script>
-update({{ bus_routes|safe }});
-{% if route_num %}
-drawRouteTrace('{{ route_num }}');
-{% endif %}
+init('{{ route_num }}');
 </script>
 </body>
 </html>

@@ -8,6 +8,7 @@ import pytz
 import dateutil.parser
 import requests
 import os.path
+import logging
 
 from datetime import timedelta
 
@@ -19,24 +20,12 @@ from django.utils import timezone
 from django.core.management import BaseCommand
 
 from home.models import Location
-from septaviz.settings import COMMON_STATIC_ROOT
+from septaviz.settings import BUS_ROUTES, COMMON_STATIC_ROOT
 
+
+log = logging.getLogger(__name__)
 
 EST = pytz.timezone('US/Eastern')
-
-BUS_ROUTES = map(str, range(1, 151)) + [
-    '15B',
-    'C',
-    'G',
-    'H',
-    'XH',
-    'J',
-    'K',
-    'L',
-    'R',
-    'LUCYGR',
-    'HXH',
-]
 
 
 class UpdateBusLocations(object):
@@ -48,18 +37,21 @@ class UpdateBusLocations(object):
 
     def should_run(self):
         return not self.last_ran_at \
-                or self.last_ran_at >= timezone.now() - timedelta(minutes=1)
+                or self.last_ran_at <= timezone.now() - timedelta(minutes=1)
 
     def run(self):
         if not self.should_run():
             return
 
         data = self.download_bus_locations()
-        locations = list(self.parse_bus_locations(data))
-        to_add = list(self.filter_bus_locations(locations))
-        with transaction.atomic():
-            Location.objects.bulk_create(to_add)
-            print('Inserted {} records'.format(len(to_add)))
+
+        if data:
+            locations = list(self.parse_bus_locations(data))
+            to_add = list(self.filter_bus_locations(locations))
+
+            with transaction.atomic():
+                Location.objects.bulk_create(to_add)
+                log.info('Inserted {} records'.format(len(to_add)))
 
         self.last_ran_at = timezone.now()
 
@@ -88,10 +80,15 @@ class UpdateBusLocations(object):
                 yield loc
 
     def download_bus_locations(self):
-        print('Downloading bus locations...')
+        log.info('Downloading bus locations...')
         url = 'http://www3.septa.org/hackathon/TransitViewAll'
         response = requests.get(url)
-        return response.json()
+        try:
+            return response.json()
+        except ValueError:
+            log.debug(response.text)
+            log.exception('ERROR downloading bus locations')
+            return None
 
     def parse_bus_locations(self, data):
         """
@@ -127,13 +124,13 @@ class UpdateRouteTrace(object):
 
     def should_run(self):
         return not self.last_ran_at \
-                or self.last_ran_at >= timezone.now() - timedelta(days=1)
+                or self.last_ran_at <= timezone.now() - timedelta(days=1)
 
     def run(self):
         if not self.should_run():
             return
 
-        print('Updating route trace files')
+        log.info('Updating route trace files')
 
         for route_num in BUS_ROUTES:
             if not self.route_trace_exists(route_num):
@@ -153,12 +150,12 @@ class UpdateRouteTrace(object):
         return os.path.exists(path)
 
     def download_kml(self, route_num):
-        print('Downloading route trace {}...'.format(route_num))
+        log.info('Downloading route trace {}...'.format(route_num))
         url = 'http://www3.septa.org/transitview/kml/{}.kml'.format(route_num)
         response = requests.get(url)
 
         if not response.ok:
-            print('ERROR: Could not download route trace "{}"'.format(route_num))
+            log.info('ERROR: Could not download route trace "{}"'.format(route_num))
             return
 
         path = self.get_kml_path(route_num)
@@ -167,13 +164,13 @@ class UpdateRouteTrace(object):
 
     def convert_kml(self, route_num):
         kml_path = self.get_kml_path(route_num)
+
         if not os.path.exists(kml_path):
-            print('ERROR: KML file does not exist for route trace "{}"'.format(route_num))
+            log.info('ERROR: KML file does not exist for route trace "{}"'.format(route_num))
             return
 
         json_path = self.get_json_path(route_num)
-        result = call(['ogr2ogr', '-f', 'GeoJSON', json_path, kml_path])
-        print(result)
+        call(['ogr2ogr', '-f', 'GeoJSON', json_path, kml_path])
 
 
 class Command(BaseCommand):
@@ -188,6 +185,6 @@ class Command(BaseCommand):
         while True:
             for task in tasks:
                 task.run()
-            time.sleep(15)
+            time.sleep(10)
 
-        print('Done')
+        log.info('Done')
