@@ -4,6 +4,6 @@ set -ex
 
 docker-compose \
     -f docker-compose.yml \
-    -f docker-compose-dev.yml \
+    -f docker-compose-prod.yml \
     run --rm \
-    --entrypoint /bin/bash website
+    --entrypoint ./manage.py website "$@"

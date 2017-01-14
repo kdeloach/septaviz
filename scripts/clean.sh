@@ -2,4 +2,4 @@
 
 set -ex
 
-find . -iname *.pyc -delete
+find . -iname "*.pyc" -delete

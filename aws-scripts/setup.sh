@@ -8,3 +8,5 @@ sudo apt-get install -y docker.io
 
 sudo pip install --upgrade pip
 sudo pip install docker-compose
+
+# TODO: Install services.

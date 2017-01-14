@@ -2,7 +2,17 @@
 
 set -ex
 
+DIR=$(dirname "$0")
+
 git pull origin master --rebase
-./setup.sh
-./manage.sh migrate
-docker-compose build
+
+"$DIR/setup.sh"
+
+docker-compose \
+    -f docker-compose.yml \
+    -f docker-compose-prod.yml \
+    build
+
+"$DIR/manage.sh" migrate
+
+# TODO: Restart services.

@@ -2,4 +2,8 @@
 
 set -ex
 
-docker-compose run --rm --entrypoint ./manage.py website $@
+docker-compose \
+    -f docker-compose.yml \
+    -f docker-compose-dev.yml \
+    run --rm \
+    --entrypoint ./manage.py website "$@"
