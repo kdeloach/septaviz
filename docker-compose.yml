@@ -9,14 +9,11 @@ services:
             - ./static:/usr/share/static
             - ./src/app:/usr/src
         env_file: .env
-        ports:
-            - 5000:5000
-        command: runserver 0.0.0.0:5000
 
     collect:
         image: kdeloach/septa-viz
-        depends_on:
-            - website
+        build:
+            context: ./src/app
         volumes:
             - ./data:/usr/data
             - ./static:/usr/share/static

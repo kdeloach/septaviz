@@ -1,0 +1,6 @@
+version: '2'
+services:
+    website:
+        ports:
+            - "80:80"
+        command: runserver 0.0.0.0:80
