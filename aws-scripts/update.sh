@@ -15,4 +15,5 @@ docker-compose \
 
 "$DIR/manage.sh" migrate
 
-# TODO: Restart services.
+sudo systemctl stop septaviz || true
+sudo systemctl start septaviz
