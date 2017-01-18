@@ -12,6 +12,7 @@ var POLL_INTERVAL_MS = 15 * 1000;
 
 var _map;
 var _data;
+var _options;
 var _vehicleLayer;
 var _vehicleTrailLayer;
 var _routeTraceLayer;
@@ -239,12 +240,34 @@ function initMap() {
     _map.addLayer(_routeTraceLayer);
 }
 
-function init(routeNum) {
-    initMap();
+// function onRouteLinkClicked(e) {
+//     var $el = $(this);
+//     console.log($el.data('route-num'));
+// }
 
-    if (routeNum.length) {
-        drawRouteTrace(routeNum);
+function menu() {
+    var $el = $('<div id="main-menu">');
+
+    _.each(_options.busRoutes, function(routeNum) {
+        $('<a>')
+            .attr({ href: '/' + routeNum })
+            .text(routeNum)
+            // .data('route-num', routeNum)
+            // .on('click', onRouteLinkClicked)
+            .appendTo($el);
+    });
+
+    $('body').append($el);
+}
+
+function init(options) {
+    _options = options;
+
+    if (options.routeNum) {
+        initMap();
+        drawRouteTrace(options.routeNum);
+        startPolling();
+    } else {
+        menu();
     }
-
-    startPolling();
 }

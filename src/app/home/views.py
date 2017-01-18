@@ -21,7 +21,7 @@ class BusRouteUndefined(ValueError):
     pass
 
 
-def fetch_bus_routes(route_num=None):
+def fetch_bus_locations(route_num=None):
     """
     Return JSON serializable collection of bus locations
     grouped by vehicle_id.
@@ -49,32 +49,31 @@ def fetch_bus_routes(route_num=None):
     return result
 
 
-def index_view(request):
+def base_context(route_num=None):
     try:
-        bus_routes = fetch_bus_routes()
+        bus_locations = fetch_bus_locations(route_num=route_num)
     except BusRouteUndefined:
         raise Http404()
-    context = {
-        'bus_routes': json.dumps(bus_routes),
+    return {
+        'route_num': json.dumps(route_num),
+        'bus_routes': json.dumps(BUS_ROUTES),
+        'bus_locations': json.dumps(bus_locations),
     }
+
+
+def index_view(request):
+    context = base_context()
     return render(request, 'home/index.html', context)
 
 
 def route_view(request, route_num):
-    try:
-        bus_routes = fetch_bus_routes(route_num=route_num)
-    except BusRouteUndefined:
-        raise Http404()
-    context = {
-        'route_num': route_num,
-        'bus_routes': json.dumps(bus_routes),
-    }
+    context = base_context(route_num=route_num)
     return render(request, 'home/index.html', context)
 
 
 def route_json_view(request, route_num):
     try:
-        bus_routes = fetch_bus_routes(route_num=route_num)
+        bus_routes = fetch_bus_locations(route_num=route_num)
     except BusRouteUndefined:
         raise Http404()
     return JsonResponse(bus_routes)
