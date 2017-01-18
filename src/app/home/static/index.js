@@ -144,7 +144,7 @@ function drawVehicles(vehicles) {
         _vehicleLayer.addLayer(marker);
     });
 
-    // fitBounds(_vehicleLayer.getBounds());
+    fitBounds(_vehicleLayer.getBounds());
 }
 
 function drawVehicleTrails(vehicles) {
