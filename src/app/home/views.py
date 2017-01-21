@@ -49,31 +49,19 @@ def fetch_bus_locations(route_num=None):
     return result
 
 
-def base_context(route_num=None):
-    try:
-        bus_locations = fetch_bus_locations(route_num=route_num)
-    except BusRouteUndefined:
-        raise Http404()
-    return {
-        'route_num': json.dumps(route_num),
-        'bus_routes': json.dumps(BUS_ROUTES),
-        'bus_locations': json.dumps(bus_locations),
-    }
-
-
 def index_view(request):
-    context = base_context()
-    return render(request, 'home/index.html', context)
-
-
-def route_view(request, route_num):
-    context = base_context(route_num=route_num)
+    context = {
+        'bus_routes': BUS_ROUTES,
+    }
     return render(request, 'home/index.html', context)
 
 
 def route_json_view(request, route_num):
     try:
-        bus_routes = fetch_bus_locations(route_num=route_num)
+        bus_locations = fetch_bus_locations(route_num=route_num)
     except BusRouteUndefined:
         raise Http404()
-    return JsonResponse(bus_routes)
+    context = {
+        'locations': bus_locations,
+    }
+    return JsonResponse(context)

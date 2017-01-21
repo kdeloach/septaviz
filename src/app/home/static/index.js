@@ -7,6 +7,7 @@
 // Incremental polling
 // Filter out "points" during KML processing (ex. route 27)
 // Add geolocate button
+// Replace polling with websocket
 
 var POLL_INTERVAL_MS = 15 * 1000;
 
@@ -17,7 +18,7 @@ var _vehicleLayer;
 var _vehicleTrailLayer;
 var _routeTraceLayer;
 var _selectedVehicleID;
-var _paused = false;
+var _timeout;
 
 function toggleVehicle(vehicleID) {
     _selectedVehicleID = _selectedVehicleID === vehicleID ? null : vehicleID;
@@ -136,6 +137,8 @@ function createMarker(locations) {
     return marker;
 }
 
+// Arguments:
+// vehicles - Bus locations grouped by vehicle ID
 function drawVehicles(vehicles) {
     _vehicleLayer.clearLayers();
 
@@ -144,9 +147,11 @@ function drawVehicles(vehicles) {
         _vehicleLayer.addLayer(marker);
     });
 
-    fitBounds(_vehicleLayer.getBounds());
+    // fitBounds(_vehicleLayer.getBounds());
 }
 
+// Arguments:
+// vehicles - Bus locations grouped by vehicle ID
 function drawVehicleTrails(vehicles) {
     _vehicleTrailLayer.clearLayers();
 
@@ -182,46 +187,84 @@ function fitBounds(bounds) {
     }
 }
 
+function getVehicles() {
+    return _data.locations || [];
+}
+
 function redraw() {
-    drawVehicles(_data);
-    drawVehicleTrails(_data);
+    drawVehicles(getVehicles());
+    drawVehicleTrails(getVehicles());
 }
 
 function update(data) {
-    if (_paused) {
-        return;
-    }
     // TODO: Apply incremental updates
     _data = data;
     redraw();
 }
 
-function drawRouteTrace(routeNum) {
-    $.getJSON('static/' + routeNum + '.json')
+function clearRouteTrace() {
+    _routeTraceLayer.clearLayers();
+}
+
+// TODO: memoization
+function fetchRouteTrace(routeNum) {
+    return $.getJSON('static/' + routeNum + '.json');
+}
+
+function showRouteTrace(routeNum) {
+    return fetchRouteTrace(routeNum)
         .then(function(geom) {
-            _routeTraceLayer.clearLayers();
             var layer = new L.GeoJSON(geom);
             _routeTraceLayer.addLayer(layer);
         });
 }
 
-function startPolling() {
-    var url = document.location.href + '.json';
+function stopPolling() {
+    if (_timeout) {
+        clearTimeout(_timeout);
+    }
+}
+
+function pollUrl(routeNum, since) {
+    var baseUrl = routeNum + '.json';
+    if (since) {
+        return baseUrl + '?since=' + since;
+    } else {
+        return baseUrl;
+    }
+}
+
+function startPolling(routeNum) {
+    var since,
+        url = pollUrl(routeNum, since);
     function poll() {
         $.getJSON(url).then(update)
-            // Ignore errors.
-            .catch(function() {})
+            .catch(_.noop)
             .then(function() {
-                setTimeout(poll, POLL_INTERVAL_MS);
+                since = moment();
+                url = pollUrl(routeNum, since);
+                _timeout = setTimeout(poll, POLL_INTERVAL_MS);
             });
     }
+    stopPolling();
     poll();
 }
 
-function initMap() {
+function hideMap() {
+    if (_map) {
+        _map.remove();
+        _map = null;
+    }
+}
+
+function showMap() {
+    if (_map) {
+        return;
+    }
+
+    hideMenu();
+
     _map = new L.Map('map', {
-        center: [39.952757, -75.163826],
-        zoom: 13
     });
 
     var baseLayer = new L.TileLayer('http://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png', {
@@ -240,34 +283,51 @@ function initMap() {
     _map.addLayer(_routeTraceLayer);
 }
 
-// function onRouteLinkClicked(e) {
-//     var $el = $(this);
-//     console.log($el.data('route-num'));
-// }
+function hideMenu() {
+    $('#main-menu').remove();
+}
 
-function menu() {
+function showMenu() {
+    hideMap();
     var $el = $('<div id="main-menu">');
-
     _.each(_options.busRoutes, function(routeNum) {
         $('<a>')
-            .attr({ href: '/' + routeNum })
+            .attr({ href: '#' + routeNum })
             .text(routeNum)
-            // .data('route-num', routeNum)
-            // .on('click', onRouteLinkClicked)
             .appendTo($el);
     });
-
     $('body').append($el);
+}
+
+function selectRoute(routeNum) {
+    showMap();
+    clearRouteTrace();
+    showRouteTrace(routeNum).then(function() {
+        fitBounds(_routeTraceLayer.getBounds());
+    });
+    startPolling(routeNum);
+}
+
+function executeRouter(e) {
+    var url = window.location.href;
+    var parts = url.split('#');
+
+    console.log(parts);
+
+    if (parts.length > 0) {
+        parts.shift();
+    }
+
+    if (parts.length > 0 && parts[0].length > 0) {
+        var routeNum = parts[0];
+        selectRoute(routeNum);
+    } else {
+        showMenu();
+    }
 }
 
 function init(options) {
     _options = options;
-
-    if (options.routeNum) {
-        initMap();
-        drawRouteTrace(options.routeNum);
-        startPolling();
-    } else {
-        menu();
-    }
+    $(window).on('hashchange', executeRouter);
+    executeRouter();
 }

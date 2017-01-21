@@ -22,9 +22,7 @@
 <script src="{% static 'index.js' %}"></script>
 <script>
 init({
-    routeNum: '{{ route_num }}',
     busRoutes: {{ bus_routes|safe }},
-    busLocations: {{ bus_locations|safe }}
 });
 </script>
 </body>
