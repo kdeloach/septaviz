@@ -117,7 +117,7 @@ function createMarker(locations) {
     popupHtml.push(' ');
     popupHtml.push(loc.direction);
     popupHtml.push(' ');
-    popupHtml.push(loc.reportedAtUTC);
+    popupHtml.push(loc.reportedAtUtc);
     popupHtml.push(' (');
     popupHtml.push(minutesAgo);
     popupHtml.push(' minutes ago)');
@@ -219,9 +219,9 @@ function showRouteTrace(routeNum) {
 
 function pollUrl(routeNum, since) {
     var baseUrl = routeNum + '.json';
-    var nowUTC = moment().format();
+    var nowUtc = moment().format();
     if (since) {
-        return baseUrl + '?since=' + nowUTC;
+        return baseUrl + '?since=' + nowUtc;
     } else {
         return baseUrl;
     }

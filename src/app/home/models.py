@@ -32,6 +32,6 @@ class Location(Model):
             'offsetSec': self.offset_sec,
             'lat': self.lat,
             'lng': self.lng,
-            'reportedAtUTC': self.reported_at_utc.isoformat(),
-            'createdAtUTC': self.created_at_utc.isoformat(),
+            'reportedAtUtc': self.reported_at_utc.isoformat(),
+            'createdAtUtc': self.created_at_utc.isoformat(),
         }
