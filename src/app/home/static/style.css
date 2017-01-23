@@ -78,7 +78,6 @@ body {
 .vehicle-eastbound .vehicle-marker-arrow { color: #0072bc; }
 
 .vehicle-inactive {
-    opacity: 0.50;
 }
 .vehicle-inactive .vehicle-marker-arrow {
     color: #ccc;

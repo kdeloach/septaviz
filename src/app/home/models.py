@@ -23,14 +23,15 @@ class Location(Model):
 
     def json(self):
         return {
-            'route_num': self.route_num,
-            'block_id': self.block_id,
-            'vehicle_id': self.vehicle_id,
+            'id': self.id,
+            'routeNum': self.route_num,
+            'blockID': self.block_id,
+            'vehicleID': self.vehicle_id,
             'direction': self.direction,
             'destination': self.destination,
-            'offset_sec': self.offset_sec,
+            'offsetSec': self.offset_sec,
             'lat': self.lat,
             'lng': self.lng,
-            'reported_at_utc': self.reported_at_utc.isoformat(),
-            'created_at_utc': self.created_at_utc.isoformat(),
+            'reportedAtUTC': self.reported_at_utc.isoformat(),
+            'createdAtUTC': self.created_at_utc.isoformat(),
         }

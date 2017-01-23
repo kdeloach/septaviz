@@ -1,15 +1,16 @@
 // TODO:
 // Draw "predicted" position (smooth transition?)
 // Fit bounds fix
-// Homepage (select route)
 // Snap to point on route?
-// Draw arrow based on previous (route) point?
-// Incremental polling
+// Stats-based polling (ex. poll 3m, then 1m, then 30s)
 // Filter out "points" during KML processing (ex. route 27)
 // Add geolocate button
 // Replace polling with websocket
 
-var POLL_INTERVAL_MS = 15 * 1000;
+// var POLL_INTERVAL_MS = 15 * 1000;
+var POLL_INTERVAL_MS = 3 * 1000;
+
+var RESOLVED_PROMISE = $.Deferred().resolve().promise();
 
 var _map;
 var _data;
@@ -18,11 +19,11 @@ var _vehicleLayer;
 var _vehicleTrailLayer;
 var _routeTraceLayer;
 var _selectedVehicleID;
-var _timeout;
+var _currentView;
 
 function toggleVehicle(vehicleID) {
     _selectedVehicleID = _selectedVehicleID === vehicleID ? null : vehicleID;
-    redraw();
+    render();
 }
 
 function createPoint(loc) {
@@ -73,7 +74,7 @@ function getVehicleCssClass(loc) {
     var result = [];
     result.push(getMarkerSize());
     if (_selectedVehicleID) {
-        if (loc.vehicle_id === _selectedVehicleID) {
+        if (loc.vehicleID === _selectedVehicleID) {
             result.push('vehicle-active');
         } else {
             result.push('vehicle-inactive');
@@ -92,14 +93,14 @@ function createMarker(locations) {
     prevLoc = prevLoc && prevLoc[0];
 
     var point = createPoint(loc);
-    var minutesAgo = Math.round(loc.offset_sec / 60);
+    var minutesAgo = Math.round(loc.offsetSec / 60);
     var angle = calculateMarkerAngle(loc, prevLoc);
     var arrowTransform = 'transform: rotate(' + angle + 'deg)';
 
     var html = [];
     html.push('<div class="vehicle-marker-inner">');
     html.push('<div class="vehicle-marker-text">');
-    html.push(loc.route_num);
+    html.push(loc.routeNum);
     html.push('</div>');
     if (angle !== false) {
         html.push('<div class="vehicle-marker-arrow" style="');
@@ -111,11 +112,11 @@ function createMarker(locations) {
     html = html.join('');
 
     var popupHtml = [];
-    popupHtml.push(loc.vehicle_id);
+    popupHtml.push(loc.vehicleID);
     popupHtml.push(' ');
     popupHtml.push(loc.direction);
     popupHtml.push(' ');
-    popupHtml.push(loc.reported_at_utc);
+    popupHtml.push(loc.reportedAtUTC);
     popupHtml.push(' (');
     popupHtml.push(minutesAgo);
     popupHtml.push(' minutes ago)');
@@ -131,10 +132,25 @@ function createMarker(locations) {
 
     // TODO: Redraw on click breaks the marker popup
     marker.on('click', function() {
-        toggleVehicle(loc.vehicle_id);
+        toggleVehicle(loc.vehicleID);
     });
 
     return marker;
+}
+
+// Iterate over vehicle locations linked list.
+// fn - Callback function; function(loc, prevLoc, i)
+function eachLocation(locations, fn) {
+    var i = 0;
+    var prevNode = null;
+    var node = locations;
+    var result = undefined;
+    while (node && result !== false) {
+        result = fn(node[0], prevNode && prevNode[0], i);
+        prevNode = node;
+        node = node[1];
+        i++;
+    }
 }
 
 // Arguments:
@@ -142,8 +158,8 @@ function createMarker(locations) {
 function drawVehicles(vehicles) {
     _vehicleLayer.clearLayers();
 
-    _.each(vehicles, function(locations, vehicleID) {
-        var marker = createMarker(locations);
+    _.each(vehicles, function(locs, vehicleID) {
+        var marker = createMarker(locs);
         _vehicleLayer.addLayer(marker);
     });
 
@@ -151,47 +167,48 @@ function drawVehicles(vehicles) {
 }
 
 // Arguments:
+// locs - Linked list vehicle locations
+// ex. [ {...}, [ {...}, null] ]
+function drawTrail(locs, vehicleID) {
+    eachLocation(locs, function(loc, prevLoc, i) {
+        if (prevLoc) {
+            var latlngs = [
+                [prevLoc.lat, prevLoc.lng],
+                [loc.lat, loc.lng],
+            ];
+            var line = new L.Polyline(latlngs, {
+                color: '#000',
+                weight: 10 - i * 1.16
+            });
+            _vehicleTrailLayer.addLayer(line);
+        }
+        return i < 5;
+    });
+}
+
+// Arguments:
 // vehicles - Bus locations grouped by vehicle ID
 function drawVehicleTrails(vehicles) {
     _vehicleTrailLayer.clearLayers();
-
-    var i = 0;
-    var locs = vehicles[_selectedVehicleID];
-
-    // Skip first location.
-    locs = locs && locs[1];
-
-    while (locs && i < 10) {
-        var loc = locs[0];
-        var point = createPoint(loc);
-        var radius = Math.max(1, (10 - i) * 1.161);
-
-        var dot = new L.CircleMarker(point, {
-            stroke: false,
-            fillOpacity: 1,
-            fillColor: '#000',
-            radius: radius
-        });
-        dot.bindPopup(moment(loc.reported_at_utc).fromNow());
-
-        _vehicleTrailLayer.addLayer(dot);
-
-        locs = locs[1];
-        i++;
-    }
+    _.each(vehicles, function(locs, vehicleID) {
+        if (vehicleID == _selectedVehicleID) {
+            drawTrail(locs, vehicleID);
+        }
+    });
 }
 
 function fitBounds(bounds) {
     if (bounds.isValid()) {
         _map.fitBounds(bounds);
     }
+    return RESOLVED_PROMISE;
 }
 
 function getVehicles() {
     return _data.locations || [];
 }
 
-function redraw() {
+function render() {
     drawVehicles(getVehicles());
     drawVehicleTrails(getVehicles());
 }
@@ -199,11 +216,7 @@ function redraw() {
 function update(data) {
     // TODO: Apply incremental updates
     _data = data;
-    redraw();
-}
-
-function clearRouteTrace() {
-    _routeTraceLayer.clearLayers();
+    render();
 }
 
 // TODO: memoization
@@ -213,16 +226,10 @@ function fetchRouteTrace(routeNum) {
 
 function showRouteTrace(routeNum) {
     return fetchRouteTrace(routeNum)
-        .then(function(geom) {
+        .done(function(geom) {
             var layer = new L.GeoJSON(geom);
             _routeTraceLayer.addLayer(layer);
         });
-}
-
-function stopPolling() {
-    if (_timeout) {
-        clearTimeout(_timeout);
-    }
 }
 
 function pollUrl(routeNum, since) {
@@ -235,19 +242,35 @@ function pollUrl(routeNum, since) {
 }
 
 function startPolling(routeNum) {
-    var since,
-        url = pollUrl(routeNum, since);
+    var since, xhr, timeout;
+    var alive = true;
+    var url = pollUrl(routeNum, since);
+
     function poll() {
-        $.getJSON(url).then(update)
+        xhr = $.getJSON(url);
+        xhr.done(function(data) {
+                if (alive) {
+                    update(data);
+                }
+            })
             .catch(_.noop)
-            .then(function() {
-                since = moment();
-                url = pollUrl(routeNum, since);
-                _timeout = setTimeout(poll, POLL_INTERVAL_MS);
+            .always(function() {
+                if (alive) {
+                    since = moment();
+                    url = pollUrl(routeNum, since);
+                    timeout = setTimeout(poll, POLL_INTERVAL_MS);
+                }
             });
     }
-    stopPolling();
+
     poll();
+
+    return function cancel() {
+        alive = false;
+        xhr.abort();
+        clearTimeout(timeout);
+        return RESOLVED_PROMISE;
+    };
 }
 
 function hideMap() {
@@ -255,17 +278,15 @@ function hideMap() {
         _map.remove();
         _map = null;
     }
+    return RESOLVED_PROMISE;
 }
 
 function showMap() {
     if (_map) {
-        return;
+        return RESOLVED_PROMISE;
     }
 
-    hideMenu();
-
-    _map = new L.Map('map', {
-    });
+    _map = new L.Map('map');
 
     var baseLayer = new L.TileLayer('http://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png', {
         attribution: '&copy; <a href="http://www.openstreetmap.org/copyright">OpenStreetMap</a> &copy; <a href="http://cartodb.com/attributions">CartoDB</a>',
@@ -281,38 +302,57 @@ function showMap() {
     _map.addLayer(_vehicleLayer);
     _map.addLayer(_vehicleTrailLayer);
     _map.addLayer(_routeTraceLayer);
-}
 
-function hideMenu() {
-    $('#main-menu').remove();
+    return RESOLVED_PROMISE;
 }
 
 function showMenu() {
-    hideMap();
     var $el = $('<div id="main-menu">');
+
     _.each(_options.busRoutes, function(routeNum) {
         $('<a>')
             .attr({ href: '#' + routeNum })
             .text(routeNum)
             .appendTo($el);
     });
-    $('body').append($el);
+
+    hideMap()
+        .then(function() { $('body').append($el); });
+
+    return function() {
+        $el.remove();
+    };
 }
 
 function selectRoute(routeNum) {
-    showMap();
-    clearRouteTrace();
-    showRouteTrace(routeNum).then(function() {
-        fitBounds(_routeTraceLayer.getBounds());
+    var stopPolling = startPolling(routeNum);
+
+    showMap()
+        .then(function() { _routeTraceLayer.clearLayers(); })
+        .then(function() { return showRouteTrace(routeNum); })
+        .then(function() { return fitBounds(_routeTraceLayer.getBounds()); });
+
+    return function() {
+        stopPolling();
+    }
+}
+
+function setPage(cleanupViewFn) {
+    var defer = RESOLVED_PROMISE;
+    // Execute cleanup function for current page.
+    if (_currentView) {
+        defer = defer.then(_currentView);
+    }
+    // Assign cleanup function for next page.
+    defer.then(function() {
+        _currentView = cleanupViewFn;
     });
-    startPolling(routeNum);
+    return defer.promise();
 }
 
 function executeRouter(e) {
     var url = window.location.href;
     var parts = url.split('#');
-
-    console.log(parts);
 
     if (parts.length > 0) {
         parts.shift();
@@ -320,9 +360,9 @@ function executeRouter(e) {
 
     if (parts.length > 0 && parts[0].length > 0) {
         var routeNum = parts[0];
-        selectRoute(routeNum);
+        setPage(selectRoute(routeNum));
     } else {
-        showMenu();
+        setPage(showMenu());
     }
 }
 
