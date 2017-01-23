@@ -62,6 +62,6 @@ def route_json_view(request, route_num):
     except BusRouteUndefined:
         raise Http404()
     context = {
-        'locations': bus_locations,
+        'vehicleLocations': bus_locations,
     }
     return JsonResponse(context)

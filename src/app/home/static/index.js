@@ -6,30 +6,32 @@
 // Filter out "points" during KML processing (ex. route 27)
 // Add geolocate button
 // Replace polling with websocket
+// Show routes that service a point within some radius
+// Vehicle marker should update during animation
 
-// var POLL_INTERVAL_MS = 15 * 1000;
-var POLL_INTERVAL_MS = 3 * 1000;
+var POLL_INTERVAL_MS = 15 * 1000;
 
 var RESOLVED_PROMISE = $.Deferred().resolve().promise();
 
 var _map;
-var _data;
 var _options;
 var _vehicleLayer;
 var _routeTraceLayer;
-var _selectedVehicleID;
 var _currentView;
-
-function toggleVehicle(vehicleID) {
-    _selectedVehicleID = _selectedVehicleID === vehicleID ? null : vehicleID;
-    render();
-}
+var _state = {};
+var _leafletState = {
+    vehicleMarkers: {}
+};
 
 function createPoint(loc) {
     return {
         lat: loc.lat,
         lng: loc.lng
     };
+}
+
+function pointsMatch(a, b) {
+    return a.lat === b.lat && a.lng === b.lng;
 }
 
 function calculateAngle(a, b) {
@@ -72,8 +74,8 @@ function getMarkerSize() {
 function getVehicleCssClass(loc) {
     var result = [];
     result.push(getMarkerSize());
-    if (_selectedVehicleID) {
-        if (loc.vehicleID === _selectedVehicleID) {
+    if (_state.selectedVehicleID) {
+        if (loc.vehicleID === _state.selectedVehicleID) {
             result.push('vehicle-active');
         } else {
             result.push('vehicle-inactive');
@@ -129,28 +131,7 @@ function createMarker(locations) {
         })
     }).bindPopup(popupHtml);
 
-    // TODO: Redraw on click breaks the marker popup
-    marker.on('click', function() {
-        toggleVehicle(loc.vehicleID);
-    });
-
     return marker;
-}
-
-    }
-}
-
-// Arguments:
-// vehicles - Bus locations grouped by vehicle ID
-function drawVehicles(vehicles) {
-    _vehicleLayer.clearLayers();
-
-    _.each(vehicles, function(locs, vehicleID) {
-        var marker = createMarker(locs);
-        _vehicleLayer.addLayer(marker);
-    });
-
-    // fitBounds(_vehicleLayer.getBounds());
 }
 
 function fitBounds(bounds) {
@@ -160,18 +141,67 @@ function fitBounds(bounds) {
     return RESOLVED_PROMISE;
 }
 
-function getVehicles() {
-    return _data.locations || [];
+function animate(marker, from, to) {
+    var i = 0;
+    var TICKS = 10;
+    var DURATION = 500;
+    var TIMEOUT = DURATION / TICKS;
+
+    function step() {
+        var lat = from.lat + (to.lat - from.lat) * i / TICKS;
+        var lng = from.lng + (to.lng - from.lng) * i / TICKS;
+
+        console.log(i, i / TICKS, lat, lng);
+
+        marker.setLatLng([lat, lng]);
+
+        if (i < TICKS) {
+            setTimeout(step, TIMEOUT);
+            i++;
+        } else {
+            marker.animating = false;
+        }
+    }
+
+    marker.animating = true;
+    step();
 }
 
-function render() {
-    drawVehicles(getVehicles());
+function render(state) {
+    var vehicleLocations = state.vehicleLocations || [];
+    var markers = _leafletState.vehicleMarkers;
+
+    _.each(markers, function(marker) {
+        marker.alive = false;
+    });
+
+    _.each(vehicleLocations, function(locs, vehicleID) {
+        var marker = markers[vehicleID];
+        if (marker) {
+            var oldPoint = marker.getLatLng();
+            var newPoint = createPoint(locs[0]);
+            if (!marker.animating && !pointsMatch(oldPoint, newPoint)) {
+                animate(marker, oldPoint, newPoint);
+            }
+        } else {
+            marker = createMarker(locs);
+            markers[vehicleID] = marker;
+            _vehicleLayer.addLayer(marker);
+        }
+        marker.alive = true;
+    });
+
+    _.each(markers, function(marker, vehicleID) {
+        if (!marker.alive) {
+            marker.remove();
+            delete markers[vehicleID];
+        }
+    });
 }
 
 function update(data) {
-    // TODO: Apply incremental updates
-    _data = data;
-    render();
+    _state.vehicleLocations = data.vehicleLocations;
+    render(_state);
 }
 
 // TODO: memoization
@@ -189,8 +219,9 @@ function showRouteTrace(routeNum) {
 
 function pollUrl(routeNum, since) {
     var baseUrl = routeNum + '.json';
+    var nowUTC = moment().format();
     if (since) {
-        return baseUrl + '?since=' + since;
+        return baseUrl + '?since=' + nowUTC;
     } else {
         return baseUrl;
     }
@@ -270,7 +301,9 @@ function showMenu() {
     });
 
     hideMap()
-        .then(function() { $('body').append($el); });
+        .then(function() {
+            $('body').append($el);
+        });
 
     return function() {
         $el.remove();
@@ -281,9 +314,15 @@ function selectRoute(routeNum) {
     var stopPolling = startPolling(routeNum);
 
     showMap()
-        .then(function() { _routeTraceLayer.clearLayers(); })
-        .then(function() { return showRouteTrace(routeNum); })
-        .then(function() { return fitBounds(_routeTraceLayer.getBounds()); });
+        .then(function() {
+            _routeTraceLayer.clearLayers();
+        })
+        .then(function() {
+            return showRouteTrace(routeNum);
+        })
+        .then(function() {
+            return fitBounds(_routeTraceLayer.getBounds());
+        });
 
     return function() {
         stopPolling();
