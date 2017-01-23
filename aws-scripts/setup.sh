@@ -14,11 +14,8 @@ cat << EOF | sudo tee /lib/systemd/system/septaviz.service > /dev/null
 Description=septaviz
 
 [Service]
-WorkingDirectory=/home/ubuntu/septa-viz
-ExecStart=/usr/local/bin/docker-compose \
-    -f docker-compose.yml \
-    -f docker-compose-prod.yml \
-    up
+WorkingDirectory=/opt/app
+ExecStart=/opt/app/aws-scripts/server.sh
 ExecStop=/usr/local/bin/docker-compose down
 
 [Install]
