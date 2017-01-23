@@ -16,7 +16,6 @@ var _map;
 var _data;
 var _options;
 var _vehicleLayer;
-var _vehicleTrailLayer;
 var _routeTraceLayer;
 var _selectedVehicleID;
 var _currentView;
@@ -138,18 +137,6 @@ function createMarker(locations) {
     return marker;
 }
 
-// Iterate over vehicle locations linked list.
-// fn - Callback function; function(loc, prevLoc, i)
-function eachLocation(locations, fn) {
-    var i = 0;
-    var prevNode = null;
-    var node = locations;
-    var result = undefined;
-    while (node && result !== false) {
-        result = fn(node[0], prevNode && prevNode[0], i);
-        prevNode = node;
-        node = node[1];
-        i++;
     }
 }
 
@@ -166,37 +153,6 @@ function drawVehicles(vehicles) {
     // fitBounds(_vehicleLayer.getBounds());
 }
 
-// Arguments:
-// locs - Linked list vehicle locations
-// ex. [ {...}, [ {...}, null] ]
-function drawTrail(locs, vehicleID) {
-    eachLocation(locs, function(loc, prevLoc, i) {
-        if (prevLoc) {
-            var latlngs = [
-                [prevLoc.lat, prevLoc.lng],
-                [loc.lat, loc.lng],
-            ];
-            var line = new L.Polyline(latlngs, {
-                color: '#000',
-                weight: 10 - i * 1.16
-            });
-            _vehicleTrailLayer.addLayer(line);
-        }
-        return i < 5;
-    });
-}
-
-// Arguments:
-// vehicles - Bus locations grouped by vehicle ID
-function drawVehicleTrails(vehicles) {
-    _vehicleTrailLayer.clearLayers();
-    _.each(vehicles, function(locs, vehicleID) {
-        if (vehicleID == _selectedVehicleID) {
-            drawTrail(locs, vehicleID);
-        }
-    });
-}
-
 function fitBounds(bounds) {
     if (bounds.isValid()) {
         _map.fitBounds(bounds);
@@ -210,7 +166,6 @@ function getVehicles() {
 
 function render() {
     drawVehicles(getVehicles());
-    drawVehicleTrails(getVehicles());
 }
 
 function update(data) {
@@ -296,11 +251,9 @@ function showMap() {
     _map.addLayer(baseLayer);
 
     _vehicleLayer = new L.FeatureGroup();
-    _vehicleTrailLayer = new L.FeatureGroup();
     _routeTraceLayer = new L.FeatureGroup();
 
     _map.addLayer(_vehicleLayer);
-    _map.addLayer(_vehicleTrailLayer);
     _map.addLayer(_routeTraceLayer);
 
     return RESOLVED_PROMISE;
