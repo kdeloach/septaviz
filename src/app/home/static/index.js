@@ -291,7 +291,7 @@ function showMap() {
 }
 
 function showMenu() {
-    var $el = $('<div id="main-menu">');
+    var $el = $('<div id="main-menu" tabindex="0">');
 
     _.each(_options.busRoutes, function(routeNum) {
         $('<a>')
@@ -303,6 +303,7 @@ function showMenu() {
     hideMap()
         .then(function() {
             $('body').append($el);
+            $el.focus();
         });
 
     return function() {
