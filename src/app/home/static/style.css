@@ -85,3 +85,7 @@ body {
 .vehicle-inactive .vehicle-marker-text {
     background-color: #ccc;
 }
+
+.leaflet-control-locate span {
+    line-height: 30px;
+}

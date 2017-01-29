@@ -274,6 +274,8 @@ function showMap() {
     });
     _map.addLayer(baseLayer);
 
+    _map.addControl(L.control.locate());
+
     _vehicleLayer = new L.FeatureGroup();
     _routeTraceLayer = new L.FeatureGroup();
 
