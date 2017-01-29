@@ -57,23 +57,8 @@ function calculateMarkerAngle(loc, prevLoc) {
     return false;
 }
 
-function getMarkerSize() {
-    var zoom = _map.getZoom();
-    if (zoom <= 13) {
-        return 'xtiny';
-    } else if (zoom <= 14) {
-        return 'tiny';
-    } else if (zoom <= 15) {
-        return 'small';
-    } else if (zoom <= 16) {
-        return 'medium';
-    }
-   return 'large';
-}
-
 function getVehicleCssClass(loc) {
     var result = [];
-    result.push(getMarkerSize());
     if (_state.selectedVehicleID) {
         if (loc.vehicleID === _state.selectedVehicleID) {
             result.push('vehicle-active');
