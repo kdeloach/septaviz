@@ -18,7 +18,7 @@ body {
     font-size: 6vh;
 }
 #main-menu a {
-    flex: 30%;
+    flex: 50%;
     margin: 1px 0;
     padding: 2vh 0;
     background: #fff;
