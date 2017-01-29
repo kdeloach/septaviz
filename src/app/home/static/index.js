@@ -142,6 +142,10 @@ function fitBounds(bounds) {
 }
 
 function animate(marker, from, to) {
+    // XXX Disable animations temporarily.
+    marker.setLatLng(to);
+    return;
+
     var i = 0;
     var TICKS = 10;
     var DURATION = 500;
@@ -163,8 +167,14 @@ function animate(marker, from, to) {
         }
     }
 
-    marker.animating = true;
-    step();
+    if (marker.animating || pointsMatch(from, to)) {
+        // Do nothing if animation is in progress, or marker position
+        // hasn't changed.
+        return;
+    } else {
+        marker.animating = true;
+        step();
+    }
 }
 
 function render(state) {
@@ -180,9 +190,7 @@ function render(state) {
         if (marker) {
             var oldPoint = marker.getLatLng();
             var newPoint = createPoint(locs[0]);
-            if (!marker.animating && !pointsMatch(oldPoint, newPoint)) {
-                animate(marker, oldPoint, newPoint);
-            }
+            animate(marker, oldPoint, newPoint);
         } else {
             marker = createMarker(locs);
             markers[vehicleID] = marker;
