@@ -1,7 +1,19 @@
 version: '2'
 services:
-    website:
-        image: kdeloach/septa-viz
+    nginx:
+        image: septa-viz-nginx
+        build:
+            context: ./src/nginx
+        ports:
+            - "9000:443"
+        links:
+            - django:django.internal
+        volumes:
+            - ./src/nginx/etc/nginx/ssl:/etc/nginx/ssl
+            - ./src/nginx/etc/nginx/conf.d:/etc/nginx/conf.d
+
+    django:
+        image: septa-viz-django
         build:
             context: ./src/app
         volumes:
@@ -9,9 +21,10 @@ services:
             - ./static:/usr/share/static
             - ./src/app:/usr/src
         env_file: .env
+        command: runserver 0.0.0.0:8000
 
     collect:
-        image: kdeloach/septa-viz
+        image: septa-viz-django
         build:
             context: ./src/app
         volumes:

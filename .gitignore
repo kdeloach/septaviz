@@ -92,3 +92,5 @@ data/*.json
 data/*.sqlite3
 static/*.kml
 static/*.json
+src/nginx/etc/nginx/ssl/septaviz.crt
+src/nginx/etc/nginx/ssl/septaviz.key
