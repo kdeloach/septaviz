@@ -3,10 +3,7 @@ from __future__ import print_function
 from __future__ import unicode_literals
 from __future__ import division
 
-import json
 import itertools
-import operator
-
 from datetime import timedelta
 
 from django.http import Http404, JsonResponse
@@ -35,12 +32,14 @@ def fetch_bus_locations(route_num=None):
             raise BusRouteUndefined()
         all_locs = all_locs.filter(route_num=route_num)
 
-    location_key = operator.attrgetter('vehicle_id')
-    grp = itertools.groupby(all_locs, key=location_key)
+    def location_key(loc):
+        return loc.vehicle_id
+
+    grouped_locs = itertools.groupby(all_locs, location_key)
 
     result = {}
 
-    for vehicle_id, locs in grp:
+    for vehicle_id, locs in grouped_locs:
         node = [locs.next().json(), None]
         for loc in locs:
             node = [loc.json(), node]
