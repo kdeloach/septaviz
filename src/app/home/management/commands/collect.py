@@ -3,23 +3,22 @@ from __future__ import print_function
 from __future__ import unicode_literals
 from __future__ import division
 
-import time
-import pytz
-import dateutil.parser
-import requests
 import os.path
 import logging
-
+import dateutil.parser
+from time import sleep
+from subprocess import call
 from datetime import timedelta
 
-from subprocess import call
-
+import pytz
+import requests
 from django.db import transaction
 from django.db.models import Max
 from django.utils import timezone
 from django.core.management import BaseCommand
 
-from home.models import Location
+import home.utils as utils
+from home.models import Location, LocationStat
 from septaviz.settings import BUS_ROUTES, COMMON_STATIC_ROOT
 
 
@@ -61,11 +60,11 @@ class UpdateBusLocations(object):
         existing locations.
         """
         latest_ids = Location.objects.values('vehicle_id') \
-                .annotate(id=Max('id'))
+            .annotate(id=Max('id'))
         latest_ids = [row['id'] for row in latest_ids]
 
         latest_models = Location.objects.filter(id__in=latest_ids) \
-                .values_list('vehicle_id', 'lat', 'lng')
+            .values_list('vehicle_id', 'lat', 'lng')
 
         lookup = {vehicle_id: (lat, lng)
                   for vehicle_id, lat, lng in latest_models}
@@ -94,22 +93,24 @@ class UpdateBusLocations(object):
         """
         Transform SEPTA API response into Location records.
         """
+        created_at_utc = timezone.now()
         for reported_at_est, routes in data.iteritems():
-            created_at_utc = timezone.now()
             reported_at_utc = dateutil.parser.parse(reported_at_est) \
                     .replace(tzinfo=EST).astimezone(pytz.utc)
             for route in routes:
                 for route_num, locations in route.iteritems():
                     for location in locations:
+                        offset_sec = location['Offset_sec']
+                        offset_reported_at_utc = reported_at_utc - \
+                            timedelta(seconds=offset_sec)
                         loc = Location()
                         loc.route_num = route_num
                         loc.created_at_utc = created_at_utc
-                        loc.reported_at_utc = reported_at_utc
+                        loc.reported_at_utc = offset_reported_at_utc
                         loc.block_id = location['BlockID']
                         loc.vehicle_id = location['VehicleID']
                         loc.direction = location['Direction']
                         loc.destination = location['destination'] or ''
-                        loc.offset_sec = location['Offset_sec']
                         loc.lat = location['lat']
                         loc.lng = location['lng']
                         yield loc
@@ -155,7 +156,8 @@ class UpdateRouteTrace(object):
         response = requests.get(url)
 
         if not response.ok:
-            log.info('ERROR: Could not download route trace "{}"'.format(route_num))
+            log.info('ERROR: Could not download route trace "{}"'
+                     .format(route_num))
             return
 
         path = self.get_kml_path(route_num)
@@ -166,11 +168,56 @@ class UpdateRouteTrace(object):
         kml_path = self.get_kml_path(route_num)
 
         if not os.path.exists(kml_path):
-            log.info('ERROR: KML file does not exist for route trace "{}"'.format(route_num))
+            log.info('ERROR: KML file does not exist for route trace "{}"'
+                     .format(route_num))
             return
 
         json_path = self.get_json_path(route_num)
         call(['ogr2ogr', '-f', 'GeoJSON', json_path, kml_path])
+
+
+class UpdateStats(object):
+    """
+    Summarize Location data by Route, Direction, and time of day.
+    """
+    def __init__(self):
+        self.last_ran_at = None
+
+    def should_run(self):
+        return not self.last_ran_at \
+            or self.last_ran_at <= timezone.now() - timedelta(hours=1)
+
+    def update(self, stats):
+        stats = list(stats)
+        count = LocationStat.objects.count()
+
+        if len(stats) < count:
+            # Since this table accumulates data, the number of records
+            # should only increase, not decrease.
+            raise Exception('ERROR: Number of LocationStat records has decreased')
+
+        with transaction.atomic():
+            LocationStat.objects.all().delete()
+            LocationStat.objects.bulk_create(stats)
+
+    def run(self):
+        if not self.should_run():
+            return
+
+        log.info('Updating statistics')
+
+        record = utils.get_oldest_valid_record()
+        if record:
+            rows = utils.get_all_records_on_date(record.created_at_utc)
+            pending_stats = utils.histogram(rows)
+            existing_stats = LocationStat.objects.all()
+            new_stats = utils.histogram_merge_left(existing_stats, pending_stats)
+            self.update(new_stats)
+
+            # Keep running this task until we run out of records to import
+            self.last_ran_at = None
+        else:
+            self.last_ran_at = timezone.now()
 
 
 class Command(BaseCommand):
@@ -180,6 +227,7 @@ class Command(BaseCommand):
         tasks = [
             UpdateRouteTrace(),
             UpdateBusLocations(),
+            UpdateStats(),
         ]
 
         while True:
