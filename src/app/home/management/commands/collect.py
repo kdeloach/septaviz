@@ -233,6 +233,6 @@ class Command(BaseCommand):
         while True:
             for task in tasks:
                 task.run()
-            time.sleep(10)
+            sleep(10)
 
         log.info('Done')
