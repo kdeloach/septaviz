@@ -1,0 +1,11 @@
+version: '2'
+services:
+    app:
+        image: septaviz-app
+        build:
+            context: .
+        volumes:
+            - $PWD:/usr/src
+        ports:
+            - "8000:8000"
+        command: python -m http.server --bind 0.0.0.0 8000
