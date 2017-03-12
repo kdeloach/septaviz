@@ -56,7 +56,7 @@ class LocationStat(Model):
     # has been aggregated into this record.
     # For example, if this value is "2017-02-26", then we know that this
     # record includes all observations up to and including that date.
-    date_utc = DateField(null=True)
+    date_utc = DateField()
 
     class Meta:
         unique_together = ('route_num', 'direction', 'hour_utc')
