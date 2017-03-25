@@ -82,6 +82,7 @@ body {
     color: #fff;
     text-align: center;
     background: #000;
+    border: 1px solid #333;
 }
 .vehicle-northbound .vehicle-marker-text,
 .vehicle-westbound .vehicle-marker-text { background-color: #ed1f24; }
@@ -89,13 +90,13 @@ body {
 .vehicle-eastbound .vehicle-marker-text { background-color: #0072bc; }
 
 .vehicle-marker-arrow {
-    /* Assumes arrow revolves around a 50px radius */
-    /* Buffer of -2px outside radius */
+    /* Assumes arrow revolves around a 50px radius, with a 1px border */
+    /* Buffer of 0px outside radius */
     position: absolute;
     top: 25px; /* radius / 2 */
     left: 0; /* -buffer */
     margin-top: -6px; /* font-size / 2 */
-    width: 50px; /* 50px + (buffer * 2) */
+    width: 52px; /* 50px + (1px border * 2) + (buffer * 2) */
     font-size: 12px;
     text-align: right;
     pointer-events: none;

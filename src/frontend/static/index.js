@@ -149,7 +149,7 @@ function renderRouteTrace() {
         var color = getRouteTraceColor(routeNum);
         var layer = new L.GeoJSON(geoJSON, {
             color: color,
-            weight: 2
+            weight: 3
         });
         _routeTraceLayer.addLayer(layer);
     });
