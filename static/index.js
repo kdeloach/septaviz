@@ -1,19 +1,42 @@
 // Generated with scripts/make_routes_json.py
 var BUS_ROUTES = ["1", "2", "3", "4", "5", "6", "7", "8", "9", "12", "14", "15B", "16", "17", "18", "19", "20", "21", "22", "23", "24", "25", "26", "27", "28", "29", "30", "31", "32", "33", "35", "37", "38", "39", "40", "42", "43", "44", "45", "46", "47", "47M", "48", "50", "52", "53", "54", "55", "56", "57", "58", "59", "60", "61", "62", "64", "65", "66", "67", "68", "70", "73", "75", "77", "78", "79", "80", "84", "88", "89", "90", "91", "92", "93", "94", "95", "96", "97", "98", "99", "103", "104", "105", "106", "107", "108", "109", "110", "111", "112", "113", "114", "115", "117", "118", "119", "120", "123", "124", "125", "126", "127", "128", "129", "130", "131", "132", "133", "139", "150", "201", "204", "205", "206", "310", "BSO", "MFO", "G", "H", "J", "K", "L", "R", "XH", "LUCY"];
 
+// Only load bus stops >= to this zoom level
+var STOPS_ZOOM_LEVEL = 15;
+
+var ROUTE_PALETTE = [
+    '#341334',
+    '#376c9f',
+    '#379f9e',
+    '#ee4035',
+    '#f37736'
+];
+
 var RESOLVED_PROMISE = $.Deferred().resolve().promise();
 
 var _map;
 var _vehicleLayer;
 var _routeTraceLayer;
-var _currentView;
+var _stopsLayer;
 var _state = {
-    currentRoute: null,
-    vehicles: []
+    loading: 0,
+    vehicles: {},
+    routeTrace: {},
+    routeTraceColor: 0,
+    stops: {}
 };
 var _leafletState = {
     vehicleMarkers: {}
 };
+
+function getActiveBusRoutes() {
+    return _.keys(_state.vehicles);
+}
+
+var getRouteTraceColor = _.memoize(function(routeNum) {
+    var i = _state.routeTraceColor++;
+    return ROUTE_PALETTE[i % ROUTE_PALETTE.length];
+});
 
 function createPoint(loc) {
     return {
@@ -40,7 +63,7 @@ function getVehicleCssClass(loc) {
     return result.join(' ');
 }
 
-function createMarker(loc) {
+function createMarker(routeNum, loc) {
     var point = createPoint(loc);
     var angle = getMarkerAngle(loc);
     var arrowTransform = 'transform: rotate(' + angle + 'deg)';
@@ -48,19 +71,21 @@ function createMarker(loc) {
     var html = [];
     html.push('<div class="vehicle-marker-inner">');
     html.push('<div class="vehicle-marker-text">');
-    html.push(loc.routeNum);
+    html.push(routeNum);
     html.push('</div>');
-    html.push('<div class="vehicle-marker-arrow" style="');
-    html.push(arrowTransform);
-    html.push('">');
-    html.push('<i class="fa fa-chevron-right"></i></div>');
+    if (angle !== false) {
+        html.push('<div class="vehicle-marker-arrow" style="');
+        html.push(arrowTransform);
+        html.push('">');
+        html.push('<i class="fa fa-chevron-right"></i></div>');
+    }
     html.push('</div>');
     html = html.join('');
 
     var marker = new L.Marker(point, {
         icon: new L.DivIcon({
             className: 'vehicle-marker ' + getVehicleCssClass(loc),
-            iconSize: [100, 100],
+            iconSize: [50, 50],
             html: html
         })
     });
@@ -75,25 +100,27 @@ function fitBounds(bounds) {
     return RESOLVED_PROMISE;
 }
 
-function render(state) {
+function renderVehicles() {
     var markers = _leafletState.vehicleMarkers;
 
     _.each(markers, function(marker) {
         marker.alive = false;
     });
 
-    _.each(state.vehicles, function(loc) {
-        var vehicleID = loc.VehicleID;
-        var marker = markers[vehicleID];
-        var point = createPoint(loc);
-        if (marker) {
-            marker.setLatLng(point);
-        } else {
-            marker = createMarker(loc);
-            markers[vehicleID] = marker;
-            _vehicleLayer.addLayer(marker);
-        }
-        marker.alive = true;
+    _.each(_state.vehicles, function(locs, routeNum) {
+        _.each(locs, function(loc) {
+            var vehicleID = loc.VehicleID;
+            var marker = markers[vehicleID];
+            var point = createPoint(loc);
+            if (marker) {
+                marker.setLatLng(point);
+            } else {
+                marker = createMarker(routeNum, loc);
+                markers[vehicleID] = marker;
+                _vehicleLayer.addLayer(marker);
+            }
+            marker.alive = true;
+        });
     });
 
     _.each(markers, function(marker, vehicleID) {
@@ -102,46 +129,110 @@ function render(state) {
             delete markers[vehicleID];
         }
     });
+
+    fitBounds(_vehicleLayer.getBounds());
 }
 
-function parseResponse(routeNum, data) {
-    var locs = data && data.bus || [];
-    for (var i = 0; i < locs.length; i++) {
-        locs[i].routeNum = routeNum;
+function removeMarkers(layer) {
+    layer.eachLayer(function(child) {
+        if (child instanceof L.Marker) {
+            layer.removeLayer(child);
+        } else if (child.getLayers) {
+            removeMarkers(child);
+        }
+    });
+}
+
+function renderRouteTrace() {
+    _routeTraceLayer.clearLayers();
+    _.each(_state.routeTrace, function(geoJSON, routeNum) {
+        var color = getRouteTraceColor(routeNum);
+        var layer = new L.GeoJSON(geoJSON, {
+            color: color,
+            weight: 2
+        });
+        _routeTraceLayer.addLayer(layer);
+    });
+    removeMarkers(_routeTraceLayer);
+}
+
+// Adapted from http://stackoverflow.com/a/30670574/40
+function stopMarker(latlng, size) {
+    var p = _map.latLngToContainerPoint(latlng);
+    var w = size / 2;
+    var h = size / 2;
+    var southWest = new L.Point(p.x - w, p.y - h);
+    var northEast = new L.Point(p.x + w, p.y + h);
+    var bounds = new L.LatLngBounds(
+        _map.containerPointToLatLng(southWest),
+        _map.containerPointToLatLng(northEast));
+    return new L.Rectangle(bounds, {
+        color: '#000',
+        weight: 1,
+        opacity: 1,
+        fillColor: '#fff',
+        fillOpacity: 1
+    });
+}
+
+function renderStops() {
+    _stopsLayer.clearLayers();
+
+    if (_map.getZoom() < STOPS_ZOOM_LEVEL) {
+        return;
     }
-    return locs;
+
+    _.each(_state.stops, function(stops, routeNum) {
+        _.each(stops, function(stop) {
+            var marker = stopMarker([stop.lat, stop.lng], 10);
+            _stopsLayer.addLayer(marker);
+        });
+    });
 }
 
-function updateRouteData(routeNum, locs) {
-    // TODO: Filter old locs for `routeNum`
-    _state.vehicles = [];
-    _state.vehicles = _state.vehicles.concat(locs);
-    render(_state);
+function renderLoading() {
+    var $el = $('#loading');
+    $el.toggleClass('hide', _state.loading === 0);
+}
+
+function render() {
+    renderVehicles();
+    renderRouteTrace();
+    renderStops();
 }
 
 function fetchRouteTrace(routeNum) {
-    // TODO: Filter out random points from GeoJSON
-    return $.getJSON('data/trace/' + routeNum + '.json');
+    return fetch('data/trace/' + routeNum + '.json');
 }
 
-function showRouteTrace(routeNum) {
-    return fetchRouteTrace(routeNum)
-        .done(function(geom) {
-            var layer = new L.GeoJSON(geom);
-            _routeTraceLayer.addLayer(layer);
-        });
+function fetch(url, args) {
+    _state.loading++;
+    renderLoading();
+
+    args = _.assign({
+        dataType: 'json'
+    }, args);
+
+    var defer = $.ajax(url, args);
+    defer.always(function() {
+        _state.loading--;
+        renderLoading();
+    });
+    return defer;
 }
 
-// TODO: Invalidate cache after interval
-var fetchVehicleLocations = function(routeNum) {
+function fetchVehicles(routeNum) {
     var url = 'http://www3.septa.org/api/TransitView/?route=' + routeNum;
-    return $.ajax({
-        url: url,
+    return fetch(url, {
         dataType: 'jsonp'
     }).then(function(data) {
-        return parseResponse(routeNum, data);
+        return data && data.bus || [];
     });
-};
+}
+
+function fetchStops(routeNum) {
+    return fetch('/data/stops/' + routeNum + '.json');
+}
 
 function hideMap() {
     if (_map) {
@@ -151,12 +242,13 @@ function hideMap() {
     return RESOLVED_PROMISE;
 }
 
-function showMap() {
-    if (_map) {
-        return RESOLVED_PROMISE;
-    }
-
-    _map = new L.Map('map');
+function initMap() {
+    _map = new L.Map('map', {
+        minZoom: 12,
+        // Philadelphia city bounds
+        maxBounds: [[39.699262, -75.587311], [40.209294, -74.737930]],
+        zoomControl: false
+    });
 
     var baseLayer = new L.TileLayer('//{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png', {
         attribution: '&copy; <a href="http://www.openstreetmap.org/copyright">OpenStreetMap</a> &copy; <a href="http://cartodb.com/attributions">CartoDB</a>',
@@ -165,19 +257,30 @@ function showMap() {
     });
     _map.addLayer(baseLayer);
 
-    _map.addControl(L.control.locate());
+    _map.addControl(new L.Control.Zoom({
+        position: 'bottomright'
+    }));
+    _map.addControl(new L.Control.Locate({
+        position: 'bottomright'
+    }));
 
     _vehicleLayer = new L.FeatureGroup();
     _routeTraceLayer = new L.FeatureGroup();
+    _stopsLayer = new L.FeatureGroup();
 
     _map.addLayer(_vehicleLayer);
     _map.addLayer(_routeTraceLayer);
+    _map.addLayer(_stopsLayer);
 
-    return RESOLVED_PROMISE;
+    _map.on('zoomend', renderStops);
+
+    // Philadelphia
+    _map.setView([39.952584, -75.165222], 13);
 }
 
 function showMenu() {
-    var $el = $('<div id="main-menu" tabindex="0">');
+    var $el = $('#menu');
+    $el.html('');
 
     _.each(BUS_ROUTES, function(routeNum) {
         $('<a>')
@@ -186,46 +289,49 @@ function showMenu() {
             .appendTo($el);
     });
 
-    hideMap()
-        .then(function() {
-            $('body').append($el);
-            $el.focus();
-        });
-
-    return function() {
-        $el.remove();
-    };
+    $el.show();
+    $el.focus();
 }
 
-function selectRoute(routeNum) {
-    _state.currentRoute = routeNum;
-    showMap()
-        .then(function() {
-            // TODO: Show "Loading..." message
-            return fetchVehicleLocations(routeNum);
-        })
+function hideMenu() {
+    $('#menu').hide();
+}
+
+// Load all map objects for single bus route.
+function loadRoute(routeNum) {
+    fetchVehicles(routeNum)
         .then(function(locs) {
-            updateRouteData(routeNum, locs);
-            _routeTraceLayer.clearLayers();
-            return showRouteTrace(routeNum);
+            _state.vehicles[routeNum] = locs;
         })
-        .then(function() {
-            return fitBounds(_routeTraceLayer.getBounds());
-        });
-    return RESOLVED_PROMISE;
+        .done(renderVehicles);
+    fetchRouteTrace(routeNum)
+        .then(function(geoJSON) {
+            _state.routeTrace[routeNum] = geoJSON;
+        })
+        .done(renderRouteTrace);
+    fetchStops(routeNum)
+        .then(function(stops) {
+            _state.stops[routeNum] = stops;
+        })
+        .done(renderStops);
 }
 
-function setPage(cleanupViewFn) {
-    var defer = RESOLVED_PROMISE;
-    // Execute cleanup function for current page.
-    if (_currentView) {
-        defer = defer.then(_currentView);
-    }
-    // Assign cleanup function for next page.
-    defer.then(function() {
-        _currentView = cleanupViewFn;
+function showBackButton() {
+    $('#back').show();
+}
+
+function hideBackButton() {
+    $('#back').hide();
+}
+
+function selectRoutes(routeNums) {
+    _.each(routeNums, function(routeNum) {
+        loadRoute(routeNum);
     });
-    return defer.promise();
+}
+
+function parseRoutes(value) {
+    return value.split(',');
 }
 
 function executeRoute(e) {
@@ -237,14 +343,18 @@ function executeRoute(e) {
     }
 
     if (parts.length > 0 && parts[0].length > 0) {
-        var routeNum = parts[0];
-        setPage(selectRoute(routeNum));
+        var routeNum = parseRoutes(parts[0]);
+        selectRoutes(routeNum);
+        hideMenu();
+        showBackButton();
     } else {
-        setPage(showMenu());
+        showMenu();
+        hideBackButton();
     }
 }
 
 function init() {
+    initMap();
     $(window).on('hashchange', executeRoute);
     executeRoute();
 }
