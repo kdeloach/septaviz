@@ -2,9 +2,8 @@
 
 set -e
 
-SCRIPTS_DIR=/usr/src/scripts
-STOPS_DIR=/usr/src/data/stops
-BUS_ROUTES_FILE="$SCRIPTS_DIR/routes.txt"
+STOPS_DIR=/usr/src/frontend/static/stops
+BUS_ROUTES_FILE=/usr/src/backend/routes.txt
 
 mkdir -p $STOPS_DIR
 

@@ -11,3 +11,7 @@ docker-compose run --rm \
 docker-compose run --rm \
     --entrypoint ./scripts/download_bus_stops.sh \
     app
+
+docker-compose run --rm \
+    --entrypoint ./scripts/make_ssl_cert.sh \
+    app

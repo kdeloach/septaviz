@@ -3,8 +3,7 @@ import os
 import sys
 import json
 
-SCRIPTS_DIR = '/usr/src/scripts'
-BUS_ROUTES_FILE = os.path.join(SCRIPTS_DIR, 'routes.txt')
+BUS_ROUTES_FILE = '/usr/src/backend/routes.txt'
 
 result = []
 

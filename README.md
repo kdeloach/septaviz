@@ -9,3 +9,5 @@ SEPTA API Visualization
 ./scripts/update.sh
 ./scripts/server.sh
 ```
+
+Browse to [https://localhost:8000](https://localhost:8000).

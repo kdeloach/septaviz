@@ -1,11 +1,13 @@
 version: '2'
 services:
     app:
-        image: septaviz-app
+        image: septaviz-backend
         build:
-            context: .
+            context: src/backend
         volumes:
-            - $PWD:/usr/src
+            - $PWD/src:/usr/src
+            - $PWD/scripts:/usr/src/scripts
+            - $PWD/data:/usr/data
         ports:
             - "8000:8000"
-        command: python -m http.server --bind 0.0.0.0 8000
+        command: /usr/src/backend/server.py 0.0.0.0 8000

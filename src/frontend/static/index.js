@@ -202,7 +202,7 @@ function render() {
 }
 
 function fetchRouteTrace(routeNum) {
-    return fetch('data/trace/' + routeNum + '.json');
+    return fetch('static/trace/' + routeNum + '.json');
 }
 
 function fetch(url, args) {
@@ -222,7 +222,7 @@ function fetch(url, args) {
 }
 
 function fetchVehicles(routeNum) {
-    var url = 'http://www3.septa.org/api/TransitView/?route=' + routeNum;
+    var url = '//www3.septa.org/api/TransitView/?route=' + routeNum;
     return fetch(url, {
         dataType: 'jsonp'
     }).then(function(data) {
@@ -231,7 +231,7 @@ function fetchVehicles(routeNum) {
 }
 
 function fetchStops(routeNum) {
-    return fetch('/data/stops/' + routeNum + '.json');
+    return fetch('static/stops/' + routeNum + '.json');
 }
 
 function hideMap() {
@@ -250,7 +250,7 @@ function initMap() {
         zoomControl: false
     });
 
-    var baseLayer = new L.TileLayer('//{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png', {
+    var baseLayer = new L.TileLayer('//cartodb-basemaps-{s}.global.ssl.fastly.net/light_all/{z}/{x}/{y}.png', {
         attribution: '&copy; <a href="http://www.openstreetmap.org/copyright">OpenStreetMap</a> &copy; <a href="http://cartodb.com/attributions">CartoDB</a>',
         subdomains: 'abcd',
         maxZoom: 19
