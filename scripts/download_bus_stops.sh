@@ -4,6 +4,7 @@ set -e
 
 STOPS_DIR=/usr/src/frontend/static/stops
 BUS_ROUTES_FILE=/usr/src/backend/routes.txt
+ALL_STOPS_FILE="$STOPS_DIR/all.json"
 
 mkdir -p $STOPS_DIR
 
@@ -17,3 +18,8 @@ while read route_num; do
         curl $url -o $path
     fi
 done < $BUS_ROUTES_FILE
+
+# Combine all bus stops
+if [[ ! -e $ALL_STOPS_FILE ]]; then
+    /usr/src/scripts/make_all_stops_json.py > $ALL_STOPS_FILE
+fi

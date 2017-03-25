@@ -1,5 +1,7 @@
 #!/usr/bin/env python
-import os
+"""
+Generate list of bus routes as JSON for use on frontend.
+"""
 import sys
 import json
 
