@@ -11,7 +11,9 @@ body {
     position: absolute;
     top: 0;
     right: 0;
-    color: #bbb;
+    padding: 5px;
+    color: #fff;
+    background: #f00;
     z-index: 1000;
 }
 
@@ -45,13 +47,11 @@ body {
     position: absolute;
     top: 0;
     left: 0;
-    margin: 10px;
     background: #eee;
     z-index: 100;
 }
 #back a {
     padding: 10px;
-    font-size: 4vh;
     text-decoration: none;
 }
 
@@ -95,7 +95,7 @@ body {
     position: absolute;
     top: 25px; /* radius / 2 */
     left: 0; /* -buffer */
-    margin-top: -6px; /* font-size / 2 */
+    margin-top: -8px; /* font-size / 2 */
     width: 52px; /* 50px + (1px border * 2) + (buffer * 2) */
     font-size: 12px;
     text-align: right;

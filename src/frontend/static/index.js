@@ -80,7 +80,7 @@ function createMarker(routeNum, loc) {
         html.push('<div class="vehicle-marker-arrow" style="');
         html.push(arrowTransform);
         html.push('">');
-        html.push('<i class="fa fa-chevron-right"></i></div>');
+        html.push('&#10148;</div>');
     }
     html.push('</div>');
     html = html.join('');
