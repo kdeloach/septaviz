@@ -5,9 +5,12 @@ services:
         build:
             context: src/backend
         volumes:
+            - $HOME/.aws:/root/.aws:ro
             - $PWD/src:/usr/src
             - $PWD/scripts:/usr/src/scripts
             - $PWD/data:/usr/data
+        environment:
+            - AWS_DEFAULT_PROFILE=septaviz
         ports:
             - "8000:8000"
         command: /usr/src/backend/server.py 0.0.0.0 8000
