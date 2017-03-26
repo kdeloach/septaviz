@@ -386,8 +386,13 @@ function executeRoute(e) {
         parts.shift();
     }
 
-    if (parts.length > 0 && parts[0].length > 0) {
-        var routeNum = parseRoutes(parts[0]);
+    var arg = parts.length && parts[0];
+
+    if (arg === 'map') {
+        hideMenu();
+        showBackButton();
+    } else if (arg) {
+        var routeNum = parseRoutes(arg);
         selectRoutes(routeNum);
         hideMenu();
         showBackButton();
