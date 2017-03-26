@@ -2,7 +2,9 @@
 var BUS_ROUTES = ["1", "2", "3", "4", "5", "6", "7", "8", "9", "12", "14", "15B", "16", "17", "18", "19", "20", "21", "22", "23", "24", "25", "26", "27", "28", "29", "30", "31", "32", "33", "35", "37", "38", "39", "40", "42", "43", "44", "45", "46", "47", "47M", "48", "50", "52", "53", "54", "55", "56", "57", "58", "59", "60", "61", "62", "64", "65", "66", "67", "68", "70", "73", "75", "77", "78", "79", "80", "84", "88", "89", "90", "91", "92", "93", "94", "95", "96", "97", "98", "99", "103", "104", "105", "106", "107", "108", "109", "110", "111", "112", "113", "114", "115", "117", "118", "119", "120", "123", "124", "125", "126", "127", "128", "129", "130", "131", "132", "133", "139", "150", "201", "204", "205", "206", "310", "BSO", "MFO", "G", "H", "J", "K", "L", "R", "XH", "LUCY"];
 
 // Only load bus stops >= to this zoom level
-var STOPS_ZOOM_LEVEL = 15;
+var STOPS_ZOOM_LEVEL = 17;
+// Detect bus routes within this radius (meters)
+var NEARBY_BUS_RADIUS = 500;
 
 var ROUTE_PALETTE = [
     '#341334',
@@ -18,6 +20,7 @@ var _map;
 var _vehicleLayer;
 var _routeTraceLayer;
 var _stopsLayer;
+var _searchLayer;
 var _state = {
     loading: 0,
     vehicles: {},
@@ -234,6 +237,10 @@ function fetchStops(routeNum) {
     return fetch('static/stops/' + routeNum + '.json');
 }
 
+function fetchAllStops() {
+    return fetchStops('all');
+}
+
 function hideMap() {
     if (_map) {
         _map.remove();
@@ -261,18 +268,23 @@ function initMap() {
         position: 'bottomright'
     }));
     _map.addControl(new L.Control.Locate({
-        position: 'bottomright'
+        position: 'bottomright',
+        keepCurrentZoomLevel: true,
+        drawCircle: false
     }));
 
     _vehicleLayer = new L.FeatureGroup();
     _routeTraceLayer = new L.FeatureGroup();
     _stopsLayer = new L.FeatureGroup();
+    _searchLayer = new L.FeatureGroup();
 
     _map.addLayer(_vehicleLayer);
     _map.addLayer(_routeTraceLayer);
     _map.addLayer(_stopsLayer);
+    _map.addLayer(_searchLayer);
 
     _map.on('zoomend', renderStops);
+    _map.on('locationfound', loadNearbyBusRoutes);
 
     // Philadelphia
     _map.setView([39.952584, -75.165222], 13);
@@ -295,6 +307,38 @@ function showMenu() {
 
 function hideMenu() {
     $('#menu').hide();
+}
+
+// Return first point found inside LatLngBounds or false if none found.
+function findPointInBounds(bounds, points) {
+    return _.find(points, function(point) {
+        return bounds.contains(point);
+    });
+}
+
+// Return list of bus routes within LatLngBounds.
+function findRoutesWithinBounds(bounds, routeStops) {
+    var result = [];
+    _.each(routeStops, function(points, routeNum) {
+        if (findPointInBounds(bounds, points)) {
+            result.push(routeNum);
+        }
+    });
+    return result;
+}
+
+function loadNearbyBusRoutes(e) {
+    var circle = new L.Circle(e.latlng, NEARBY_BUS_RADIUS);
+
+    _searchLayer.clearLayers();
+    _searchLayer.addLayer(circle);
+
+    var bounds = circle.getBounds();
+
+    fetchAllStops().then(function(routeStops) {
+        var routeNums = findRoutesWithinBounds(bounds, routeStops);
+        selectRoutes(routeNums);
+    });
 }
 
 // Load all map objects for single bus route.
