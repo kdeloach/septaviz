@@ -328,6 +328,8 @@ function findRoutesWithinBounds(bounds, routeStops) {
 }
 
 function loadNearbyBusRoutes(e) {
+    _map.stopLocate();
+
     var circle = new L.Circle(e.latlng, NEARBY_BUS_RADIUS);
 
     _searchLayer.clearLayers();
