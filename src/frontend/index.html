@@ -1,6 +1,6 @@
 <html>
 <head>
-    <title>SEPTA VIZ</title>
+    <title>septaviz</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
     <link rel="apple-touch-icon" sizes="180x180" href="static/img/apple-touch-icon.png">
     <link rel="icon" type="image/png" href="static/img/favicon-32x32.png" sizes="32x32">
@@ -13,11 +13,18 @@
     <link rel="stylesheet" href="static/style.css" />
 </head>
 <body>
+    <div id="header">
+        <h1>
+            <a href="#">
+                <img src="static/img/favicon-32x32.png" />
+                septaviz
+            </a>
+        </h1>
+        <a href="#" id="menu-btn" class="header-btn">Menu</a>
+        <a href="#map" id="map-btn" class="header-btn">Map</a>
+    </div>
     <div id="loading" class="hide">
         Loading...
-    </div>
-    <div id="back" class="hide">
-        <a href="#">&#11013; Menu</a>
     </div>
     <div id="menu" tabindex="0"></div>
     <div id="map"></div>

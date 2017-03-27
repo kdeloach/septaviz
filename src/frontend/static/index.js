@@ -291,6 +291,9 @@ function initMap() {
 }
 
 function showMenu() {
+    $('.header-btn').removeClass('header-btn-active');
+    $('#menu-btn').addClass('header-btn-active');
+
     var $el = $('#menu');
     $el.html('');
 
@@ -306,6 +309,8 @@ function showMenu() {
 }
 
 function hideMenu() {
+    $('.header-btn').removeClass('header-btn-active');
+    $('#map-btn').addClass('header-btn-active');
     $('#menu').hide();
 }
 
@@ -362,14 +367,6 @@ function loadRoute(routeNum) {
         .done(renderStops);
 }
 
-function showBackButton() {
-    $('#back').show();
-}
-
-function hideBackButton() {
-    $('#back').hide();
-}
-
 function selectRoutes(routeNums) {
     _.each(routeNums, function(routeNum) {
         loadRoute(routeNum);
@@ -392,15 +389,12 @@ function executeRoute(e) {
 
     if (arg === 'map') {
         hideMenu();
-        showBackButton();
     } else if (arg) {
         var routeNum = parseRoutes(arg);
         selectRoutes(routeNum);
         hideMenu();
-        showBackButton();
     } else {
         showMenu();
-        hideBackButton();
     }
 }
 
