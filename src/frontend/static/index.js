@@ -1,140 +1,65 @@
 // Generated with scripts/make_routes_json.py
 var BUS_ROUTES = ["1", "2", "3", "4", "5", "6", "7", "8", "9", "12", "14", "15B", "16", "17", "18", "19", "20", "21", "22", "23", "24", "25", "26", "27", "28", "29", "30", "31", "32", "33", "35", "37", "38", "39", "40", "42", "43", "44", "45", "46", "47", "47M", "48", "50", "52", "53", "54", "55", "56", "57", "58", "59", "60", "61", "62", "64", "65", "66", "67", "68", "70", "73", "75", "77", "78", "79", "80", "84", "88", "89", "90", "91", "92", "93", "94", "95", "96", "97", "98", "99", "103", "104", "105", "106", "107", "108", "109", "110", "111", "112", "113", "114", "115", "117", "118", "119", "120", "123", "124", "125", "126", "127", "128", "129", "130", "131", "132", "133", "139", "150", "201", "204", "205", "206", "310", "BSO", "MFO", "G", "H", "J", "K", "L", "R", "XH", "LUCY"];
 
-// Only load bus stops >= to this zoom level
-var STOPS_ZOOM_LEVEL = 17;
+var DEFAULT_CENTER = [39.952584, -75.165222];
+var DEFAULT_ZOOM = 13;
+
+// Only display bus stops when zoomed to this level and beyond
+var STOPS_ZOOM_LEVEL = 16;
+
 // Detect bus routes within this radius (meters)
 var NEARBY_BUS_RADIUS = 500;
 
-var ROUTE_PALETTE = [
-    '#341334',
-    '#376c9f',
-    '#379f9e',
-    '#ee4035',
-    '#f37736'
+var PALETTE = [
+    '#4C73B6',
+    '#1C4CA4',
+    '#F49484',
+    '#F34930'
 ];
 
-var RESOLVED_PROMISE = $.Deferred().resolve().promise();
-
-var _map;
-var _vehicleLayer;
-var _routeTraceLayer;
-var _stopsLayer;
-var _searchLayer;
-var _state = {
-    loading: 0,
-    vehicles: {},
-    routeTrace: {},
-    routeTraceColor: 0,
-    stops: {}
-};
-var _leafletState = {
-    vehicleMarkers: {}
-};
-
-function getActiveBusRoutes() {
-    return _.keys(_state.vehicles);
-}
-
-var getRouteTraceColor = _.memoize(function(routeNum) {
-    var i = _state.routeTraceColor++;
-    return ROUTE_PALETTE[i % ROUTE_PALETTE.length];
+var busStopMarkerIcon = new L.DivIcon({
+    className: 'bus-stop-marker'
 });
 
-function createPoint(loc) {
-    return {
-        lat: loc.lat,
-        lng: loc.lng
+function log() {
+    console.log.apply(this, arguments);
+}
+
+function clone(obj) {
+    return Object.assign({}, obj);
+}
+
+function arrayEqual(a, b) {
+    a.sort();
+    b.sort();
+    a = a.join(',');
+    b = b.join(',');
+    return a === b;
+}
+
+function arrayRemoveIndex(arr, index) {
+    var head = arr.slice(0, index);
+    var tail = arr.slice(index + 1, arr.length);
+    return head.concat(tail);
+}
+
+var uniqueId = (function() {
+    var i = 0;
+    return function() {
+        return i++;
     };
-}
+}());
 
-function getMarkerAngle(loc) {
-    switch (loc.Direction.toLocaleLowerCase()) {
-        case 'eastbound': return 0;
-        case 'southbound': return 90;
-        case 'westbound': return 180;
-        case 'northbound': return 270;
-    }
-    return false;
-}
-
-function getVehicleCssClass(loc) {
-    var result = [];
-    if (loc.Direction.length) {
-        result.push('vehicle-' + loc.Direction.toLocaleLowerCase());
-    }
-    return result.join(' ');
-}
-
-function createMarker(routeNum, loc) {
-    var point = createPoint(loc);
-    var angle = getMarkerAngle(loc);
-    var arrowTransform = 'transform: rotate(' + angle + 'deg)';
-
-    var html = [];
-    html.push('<div class="vehicle-marker-inner">');
-    html.push('<div class="vehicle-marker-text">');
-    html.push(routeNum);
-    html.push('</div>');
-    if (angle !== false) {
-        html.push('<div class="vehicle-marker-arrow" style="');
-        html.push(arrowTransform);
-        html.push('">');
-        html.push('&#10148;</div>');
-    }
-    html.push('</div>');
-    html = html.join('');
-
-    var marker = new L.Marker(point, {
-        icon: new L.DivIcon({
-            className: 'vehicle-marker ' + getVehicleCssClass(loc),
-            iconSize: [50, 50],
-            html: html
-        })
-    });
-
-    return marker;
-}
-
-function fitBounds(bounds) {
-    if (bounds.isValid()) {
-        _map.fitBounds(bounds);
-    }
-    return RESOLVED_PROMISE;
-}
-
-function renderVehicles() {
-    var markers = _leafletState.vehicleMarkers;
-
-    _.each(markers, function(marker) {
-        marker.alive = false;
-    });
-
-    _.each(_state.vehicles, function(locs, routeNum) {
-        _.each(locs, function(loc) {
-            var vehicleID = loc.VehicleID;
-            var marker = markers[vehicleID];
-            var point = createPoint(loc);
-            if (marker) {
-                marker.setLatLng(point);
-            } else {
-                marker = createMarker(routeNum, loc);
-                markers[vehicleID] = marker;
-                _vehicleLayer.addLayer(marker);
-            }
-            marker.alive = true;
-        });
-    });
-
-    _.each(markers, function(marker, vehicleID) {
-        if (!marker.alive) {
-            marker.remove();
-            delete markers[vehicleID];
+var routeTraceColor = (function() {
+    var memo = {};
+    var i = 0;
+    return function(routeNum) {
+        if (typeof memo[routeNum] === 'undefined') {
+            memo[routeNum] = i++;
         }
-    });
-
-    fitBounds(_vehicleLayer.getBounds());
-}
+        return PALETTE[memo[routeNum] % PALETTE.length];
+    };
+}());
 
 function removeMarkers(layer) {
     layer.eachLayer(function(child) {
@@ -146,114 +71,146 @@ function removeMarkers(layer) {
     });
 }
 
-function renderRouteTrace() {
-    _routeTraceLayer.clearLayers();
-    _.each(_state.routeTrace, function(geoJSON, routeNum) {
-        var color = getRouteTraceColor(routeNum);
-        var layer = new L.GeoJSON(geoJSON, {
-            color: color,
-            weight: 3
-        });
-        _routeTraceLayer.addLayer(layer);
-    });
-    removeMarkers(_routeTraceLayer);
+function State(initialState, onStateChanged) {
+    this.onStateChanged = onStateChanged;
+    this._state = clone(initialState);
+    this._nextState = clone(initialState);
 }
+State.prototype.getPrevState = function() {
+    return new State(this._prevState);
+};
 
-// Adapted from http://stackoverflow.com/a/30670574/40
-function stopMarker(latlng, size) {
-    var p = _map.latLngToContainerPoint(latlng);
-    var w = size / 2;
-    var h = size / 2;
-    var southWest = new L.Point(p.x - w, p.y - h);
-    var northEast = new L.Point(p.x + w, p.y + h);
-    var bounds = new L.LatLngBounds(
-        _map.containerPointToLatLng(southWest),
-        _map.containerPointToLatLng(northEast));
-    return new L.Rectangle(bounds, {
-        color: '#000',
-        weight: 1,
-        opacity: 1,
-        fillColor: '#fff',
-        fillOpacity: 1
-    });
-}
+// Flush queued state changes by copying _nextState to _state
+State.prototype.update = function() {
+    this._prevState = this._state;
+    this._state = clone(this._nextState);
+    this.onStateChanged();
+};
 
-function renderStops() {
-    _stopsLayer.clearLayers();
-
-    if (_map.getZoom() < STOPS_ZOOM_LEVEL) {
-        return;
+// Setters queue next state value using _nextState
+State.prototype.setMenuActive = function(value) {
+    this._nextState.menuActive = value;
+    return this;
+};
+State.prototype.setLocation = function(latlng) {
+    this._nextState.location = latlng;
+    return this;
+};
+// This value cannot be changed once set to true
+State.prototype.setAllStopsNeeded = function() {
+    this._nextState.allStopsNeeded = true;
+    return this;
+};
+State.prototype.setAllStops = function(stops) {
+    this._nextState.allStops = stops;
+    return this;
+};
+State.prototype.setActiveBusRoutes = function(routeNums) {
+    log('setActiveBusRoutes', routeNums);
+    this._nextState.busRoutes = routeNums;
+    if (!arrayEqual(this.getActiveBusRoutes(), routeNums)) {
+        this._nextState.busRoutesID = uniqueId();
     }
-
-    _.each(_state.stops, function(stops, routeNum) {
-        _.each(stops, function(stop) {
-            var marker = stopMarker([stop.lat, stop.lng], 10);
-            _stopsLayer.addLayer(marker);
-        });
-    });
-}
-
-function renderLoading() {
-    var $el = $('#loading');
-    $el.toggleClass('hide', _state.loading === 0);
-}
-
-function render() {
-    renderVehicles();
-    renderRouteTrace();
-    renderStops();
-}
-
-function fetchRouteTrace(routeNum) {
-    return fetch('static/trace/' + routeNum + '.json');
-}
-
-function fetch(url, args) {
-    _state.loading++;
-    renderLoading();
-
-    args = _.assign({
-        dataType: 'json'
-    }, args);
-
-    var defer = $.ajax(url, args);
-    defer.always(function() {
-        _state.loading--;
-        renderLoading();
-    });
-    return defer;
-}
-
-function fetchVehicles(routeNum) {
-    var url = '//www3.septa.org/api/TransitView/?route=' + routeNum;
-    return fetch(url, {
-        dataType: 'jsonp'
-    }).then(function(data) {
-        return data && data.bus || [];
-    });
-}
-
-function fetchStops(routeNum) {
-    return fetch('static/stops/' + routeNum + '.json');
-}
-
-function fetchAllStops() {
-    return fetchStops('all');
-}
-
-function hideMap() {
-    if (_map) {
-        _map.remove();
-        _map = null;
+    return this;
+};
+State.prototype.setRouteTrace = function(routeNum, geojson) {
+    if (!geojson) {
+        throw Exception('Invalid route trace GeoJSON');
     }
-    return RESOLVED_PROMISE;
-}
+    log('setRouteTrace', routeNum);
+    this._nextState.routeTrace = this._nextState.routeTrace || {};
+    this._nextState.routeTrace[routeNum] = geojson;
+    this._nextState.routeTraceID = uniqueId();
+    return this;
+};
+State.prototype.setStops = function(routeNum, data) {
+    if (!data) {
+        throw Exception('Invalid stops data');
+    }
+    log('setStops', routeNum);
+    this._nextState.stops = this._nextState.stops || {};
+    this._nextState.stops[routeNum] = data;
+    this._nextState.stopsID = uniqueId();
+    return this;
+};
+State.prototype.setVehicles = function(routeNum, data) {
+    if (!data) {
+        throw Exception('Invalid vehicles data');
+    }
+    log('setVehicles', routeNum);
+    this._nextState.vehicles = this._nextState.vehicles || {};
+    this._nextState.vehicles[routeNum] = data;
+    this._nextState.vehiclesID = uniqueId();
+    return this;
+};
 
-function initMap() {
-    _map = new L.Map('map', {
-        minZoom: 12,
-        // Philadelphia city bounds
-        maxBounds: [[39.699262, -75.587311], [40.209294, -74.737930]],
+// Getters return current values from _state
+State.prototype.isMenuActive = function() {
+    return !!this._state.menuActive;
+};
+
+State.prototype.getAllStops = function() {
+    return this._state.allStops;
+};
+State.prototype.getActiveBusRoutesID = function() {
+    return this._state.busRoutesID;
+};
+State.prototype.getRouteTraceID = function() {
+    return this._state.routeTraceID;
+};
+State.prototype.getStopsID = function() {
+    return this._state.stopsID;
+};
+State.prototype.getVehiclesID = function() {
+    return this._state.vehiclesID;
+};
+State.prototype.getActiveBusRoutes = function() {
+    return this._state.busRoutes || [];
+};
+State.prototype.getRouteTrace = function(routeNum) {
+    return this._state.routeTrace && this._state.routeTrace[routeNum];
+};
+State.prototype.getStops = function(routeNum) {
+    return this._state.stops && this._state.stops[routeNum];
+};
+State.prototype.getVehicles = function(routeNum) {
+    return this._state.vehicles && this._state.vehicles[routeNum];
+};
+State.prototype.getLocation = function() {
+    return this._state.location;
+};
+State.prototype.isAllStopsLoaded = function() {
+    return !!this.getAllStops();
+};
+State.prototype.isAllStopsNeeded = function() {
+    return !!this._state.allStopsNeeded;
+};
+State.prototype.isBusRouteActive = function(routeNum) {
+    if (routeNum === 'all') {
+        return true;
+    }
+    return this.getActiveBusRoutes().indexOf(routeNum) !== -1;
+};
+State.prototype.isRouteTraceLoaded = function(routeNum) {
+    return !!this.getRouteTrace(routeNum);
+};
+State.prototype.isStopsLoaded = function(routeNum) {
+    return !!this.getStops(routeNum);
+};
+State.prototype.isVehiclesRecent = function(routeNum) {
+    return !!this.getVehicles(routeNum);
+};
+
+function Map(app) {
+    this.state = app.state;
+    this.router = app.router;
+    this.$el = $('#map');
+    this.initMap();
+    this.bindEvents();
+}
+Map.prototype.initMap = function() {
+    var map = this.map = new L.Map('map', {
+        minZoom: 10,
         zoomControl: false
     });
 
@@ -262,146 +219,612 @@ function initMap() {
         subdomains: 'abcd',
         maxZoom: 19
     });
-    _map.addLayer(baseLayer);
+    map.addLayer(baseLayer);
 
-    _map.addControl(new L.Control.Zoom({
+    map.addControl(new L.Control.Zoom({
         position: 'bottomright'
     }));
-    _map.addControl(new L.Control.Locate({
+    map.addControl(new L.Control.Locate({
         position: 'bottomright',
         keepCurrentZoomLevel: true,
-        drawCircle: false
+        drawCircle: false,
+        drawMarker: false
     }));
 
-    _vehicleLayer = new L.FeatureGroup();
-    _routeTraceLayer = new L.FeatureGroup();
-    _stopsLayer = new L.FeatureGroup();
-    _searchLayer = new L.FeatureGroup();
+    this.vehicleLayer = new L.FeatureGroup();
+    this.routeTraceLayer = new L.FeatureGroup();
+    this.stopsLayer = new L.FeatureGroup();
+    this.searchLayer = new L.FeatureGroup();
 
-    _map.addLayer(_vehicleLayer);
-    _map.addLayer(_routeTraceLayer);
-    _map.addLayer(_stopsLayer);
-    _map.addLayer(_searchLayer);
+    // Note that stopsLayer is not visible by default
+    map.addLayer(this.vehicleLayer);
+    map.addLayer(this.routeTraceLayer);
+    map.addLayer(this.searchLayer);
 
-    _map.on('zoomend', renderStops);
-    _map.on('locationfound', loadNearbyBusRoutes);
-
-    // Philadelphia
-    _map.setView([39.952584, -75.165222], 13);
-}
-
-function showMenu() {
-    $('.header-btn').removeClass('header-btn-active');
-    $('#menu-btn').addClass('header-btn-active');
-
-    var $el = $('#menu');
-    $el.html('');
-
-    _.each(BUS_ROUTES, function(routeNum) {
-        $('<a>')
-            .attr({ href: '#' + routeNum })
-            .text(routeNum)
-            .appendTo($el);
-    });
-
-    $el.show();
-    $el.focus();
-}
-
-function hideMenu() {
-    $('.header-btn').removeClass('header-btn-active');
-    $('#map-btn').addClass('header-btn-active');
-    $('#menu').hide();
-}
-
+    map.setView(DEFAULT_CENTER, DEFAULT_ZOOM);
+};
+Map.prototype.bindEvents = function() {
+    this.map.on('zoomend', this.onZoomChanged.bind(this));
+    this.map.on('locationfound', this.onLocationFound.bind(this));
+};
+Map.prototype.onZoomChanged = function() {
+    this.hideOrShowStops();
+};
+Map.prototype.onLocationFound = function(e) {
+    this.map.stopLocate();
+    this.state.setLocation(e.latlng)
+        .setAllStopsNeeded()
+        .update();
+};
 // Return first point found inside LatLngBounds or false if none found.
-function findPointInBounds(bounds, points) {
-    return _.find(points, function(point) {
-        return bounds.contains(point);
-    });
-}
-
+Map.prototype.findPointInBounds = function(bounds, points) {
+    for (var i = 0; i < points.length; i++) {
+        var point = points[i];
+        if (bounds.contains(point)) {
+            return true;
+        }
+    }
+    return false;
+};
 // Return list of bus routes within LatLngBounds.
-function findRoutesWithinBounds(bounds, routeStops) {
+Map.prototype.findRoutesWithinBounds = function(bounds, stops) {
     var result = [];
-    _.each(routeStops, function(points, routeNum) {
-        if (findPointInBounds(bounds, points)) {
+    for (var routeNum in stops) {
+        var points = stops[routeNum];
+        if (this.findPointInBounds(bounds, points)) {
             result.push(routeNum);
         }
-    });
+    }
     return result;
-}
+};
+Map.prototype.locateBusRoutes = function() {
+    var stops = this.state.getAllStops();
+    var latlng = this.state.getLocation();
 
-function loadNearbyBusRoutes(e) {
-    _map.stopLocate();
+    if (!stops) {
+        return;
+    } else if (!latlng) {
+        return;
+    }
 
-    var circle = new L.Circle(e.latlng, NEARBY_BUS_RADIUS);
-
-    _searchLayer.clearLayers();
-    _searchLayer.addLayer(circle);
-
+    this.searchLayer.clearLayers();
+    var circle = new L.Circle(latlng, NEARBY_BUS_RADIUS);
+    this.searchLayer.addLayer(circle);
     var bounds = circle.getBounds();
 
-    fetchAllStops().then(function(routeStops) {
-        var routeNums = findRoutesWithinBounds(bounds, routeStops);
-        selectRoutes(routeNums);
+    var marker = new L.Marker(latlng, {
+        draggable: true
     });
-}
+    marker.on('dragend', function(e) {
+        this.state.setLocation(marker.getLatLng()).update();
+    }.bind(this));
+    this.searchLayer.addLayer(marker);
 
-// Load all map objects for single bus route.
-function loadRoute(routeNum) {
-    fetchVehicles(routeNum)
-        .then(function(locs) {
-            _state.vehicles[routeNum] = locs;
-        })
-        .done(renderVehicles);
-    fetchRouteTrace(routeNum)
-        .then(function(geoJSON) {
-            _state.routeTrace[routeNum] = geoJSON;
-        })
-        .done(renderRouteTrace);
-    fetchStops(routeNum)
-        .then(function(stops) {
-            _state.stops[routeNum] = stops;
-        })
-        .done(renderStops);
-}
+    this.map.fitBounds(circle.getBounds());
 
-function selectRoutes(routeNums) {
-    _.each(routeNums, function(routeNum) {
-        loadRoute(routeNum);
+    var routeNums = this.findRoutesWithinBounds(bounds, stops);
+    var url = '#' + routeNums.join(',');
+    this.router.route(url);
+};
+Map.prototype.update = function() {
+    var state = this.state;
+    var prevState = this.state.getPrevState();
+
+    // Render everything if active bus routes changed
+    if (prevState.getActiveBusRoutesID() !== state.getActiveBusRoutesID()) {
+        this.renderRouteTrace();
+        this.renderStops();
+        this.renderVehicles();
+        return;
+    }
+
+    // Partial render depending on which data has loaded
+    if (prevState.getRouteTraceID() !== state.getRouteTraceID()) {
+        this.renderRouteTrace();
+    }
+    if (prevState.getStopsID() !== state.getStopsID()) {
+        this.renderStops();
+    }
+    if (prevState.getVehiclesID() !== state.getVehiclesID()) {
+        this.renderVehicles();
+    }
+
+    if (prevState.getLocation() !== state.getLocation()) {
+        this.locateBusRoutes();
+    } else if (prevState.isAllStopsLoaded() !== state.isAllStopsLoaded()) {
+        this.locateBusRoutes();
+    }
+};
+Map.prototype.renderRouteTrace = function() {
+    log('renderRouteTrace');
+    var routeNums = this.state.getActiveBusRoutes();
+
+    this.routeTraceLayer.clearLayers();
+
+    for (var i = 0; i < routeNums.length; i++) {
+        var routeNum = routeNums[i];
+        var geojson = this.state.getRouteTrace(routeNum);
+        if (!geojson) {
+            continue;
+        }
+        var layer = new L.GeoJSON(geojson, {
+            color: routeTraceColor(routeNum),
+            weight: 3
+        });
+        this.routeTraceLayer.addLayer(layer);
+    }
+
+    // Remove marker present in some route traces
+    removeMarkers(this.routeTraceLayer);
+};
+Map.prototype.hideOrShowStops = function() {
+    log('hideOrShowStops');
+    if (this.map.getZoom() < STOPS_ZOOM_LEVEL) {
+        this.map.removeLayer(this.stopsLayer);
+    } else {
+        this.map.addLayer(this.stopsLayer);
+    }
+};
+Map.prototype.renderStops = function() {
+    log('renderStops');
+    var routeNums = this.state.getActiveBusRoutes();
+    this.stopsLayer.clearLayers();
+    for (var i = 0; i < routeNums.length; i++) {
+        var routeNum = routeNums[i];
+        var stops = this.state.getStops(routeNum);
+        if (!stops) {
+            continue;
+        }
+        for (var j = 0; j < stops.length; j++) {
+            var stop = stops[j];
+            var marker = new L.Marker([stop.lat, stop.lng], {
+                icon: busStopMarkerIcon,
+                zIndexOffset: 100
+            });
+            this.stopsLayer.addLayer(marker);
+        }
+    }
+};
+Map.prototype.getMarkerDirection = function(loc) {
+    var direction = loc.Direction.toLocaleLowerCase();
+    switch (direction) {
+        case 'northbound':
+        case 'eastbound':
+        case 'southbound':
+        case 'westbound':
+            return direction;
+    }
+    return '';
+};
+Map.prototype.getMarkerClassName = function(routeNum, loc) {
+    var result = [
+        'vehicle-marker',
+        this.getMarkerDirection(loc)
+    ];
+    if (routeNum.length > 2) {
+        result.push('condensed');
+    }
+    return result.join(' ');
+};
+Map.prototype.getMarkerHtml = function(routeNum, loc) {
+    var result = [routeNum];
+    var direction = this.getMarkerDirection(loc);
+    if (direction.length) {
+        result.push('<div class="vehicle-marker-arrow"></div>');
+    }
+    return result.join('');
+};
+Map.prototype.getMarkerContent = function(loc) {
+    var now = new Date();
+    var offsetMS = parseInt(loc.Offset_sec, 10) * 1000;
+    var reportedAt = new Date(loc.createdAt.getTime() - offsetMS);
+    var elapsedSec = (now.getTime() - reportedAt.getTime()) / 1000;
+    var min = Math.round(elapsedSec / 60);
+    if (min < 1) {
+        return 'Updated less than 1 minute ago';
+    } else {
+        return 'Updated ' + min + 'm ago';
+    }
+};
+Map.prototype.renderVehicles = function() {
+    log('renderVehicles');
+    var routeNums = this.state.getActiveBusRoutes();
+
+    var updateMarkerContent = function(loc) {
+        return function(e) {
+            e.popup.setContent(this.getMarkerContent(loc));
+        }.bind(this);
+    }.bind(this);
+
+    this.vehicleLayer.clearLayers();
+
+    this.vehicleLayer.eachLayer(function(marker) {
+        marker.alive = false;
     });
-}
 
-function parseRoutes(value) {
-    return value.split(',');
-}
+    for (var i = 0; i < routeNums.length; i++) {
+        var routeNum = routeNums[i];
+        var vehicles = this.state.getVehicles(routeNum);
+        if (!vehicles) {
+            continue;
+        }
+        for (var j = 0; j < vehicles.length; j++) {
+            var loc = vehicles[j];
+            var marker = new L.Marker(loc, {
+                icon: new L.DivIcon({
+                    className: this.getMarkerClassName(routeNum, loc),
+                    iconSize: [50, 50],
+                    html: this.getMarkerHtml(routeNum, loc)
+                }),
+                zIndexOffset: 200
+            });
+            marker.on('popupopen', updateMarkerContent(loc));
+            marker.bindPopup('', {
+                offset: [0, -5]
+            });
+            marker.alive = true;
+            this.vehicleLayer.addLayer(marker);
+        }
+    }
 
-function executeRoute(e) {
+    this.vehicleLayer.eachLayer(function(marker) {
+        if (!marker.alive) {
+            this.vehicleLayer.removeLayer(marker);
+        }
+    });
+
+};
+Map.prototype.render = function() {};
+
+function Header(app) {
+    this.state = app.state;
+    this.$el = $('#header');
+    this.$menuBtn = this.$el.find('#menu-btn');
+    this.bindEvents();
+}
+Header.prototype.bindEvents = function() {
+    var state = this.state;
+    this.$menuBtn.on('click', function(e) {
+        e.preventDefault();
+        state.setMenuActive(!state.isMenuActive()).update();
+    });
+};
+Header.prototype.update = function() {
+    this.$menuBtn.toggleClass('header-btn-active', this.state.isMenuActive());
+};
+
+function Menu(app) {
+    this.state = app.state;
+    this.router = app.router;
+    this.$el = $('#menu');
+    this.bindEvents();
+    this.render();
+}
+Menu.prototype.bindEvents = function() {
+    this.$el.on('click', 'a', this.onMenuItemClicked.bind(this));
+};
+Menu.prototype.onMenuItemClicked = function(e) {
+    e.preventDefault();
+    var $a = $(e.target);
+    var routeNum = $a.attr('data-route-num');
+    var activeRouteNums = this.state.getActiveBusRoutes();
+    var routeNums = this.toggleBusRoute(activeRouteNums, routeNum);
+    var url = '#' + routeNums.join(',');
+    this.router.route(url);
+};
+// Toggle bus route from list of bus routes.
+// Ex.
+// toggleBusRoute([1, 2], 3) -> [1, 2, 3]
+// toggleBusRoute([1, 2, 3], 3) -> [1, 2]
+Menu.prototype.toggleBusRoute = function(routeNums, routeNum) {
+    var index = routeNums.indexOf(routeNum);
+    if (index !== -1) {
+        return arrayRemoveIndex(routeNums, index);
+    }
+    return routeNums.concat(routeNum);
+};
+Menu.prototype.show = function() {
+    this.$el.show();
+};
+Menu.prototype.hide = function() {
+    this.$el.hide();
+};
+Menu.prototype.update = function() {
+    var menuActive = this.state.isMenuActive();
+    if (menuActive !== this.state.getPrevState().isMenuActive()) {
+        if (menuActive) {
+            this.show();
+        } else {
+            this.hide();
+        }
+    }
+};
+Menu.prototype.render = function() {
+    var $fragment = $('<div>');
+    for (var i = 0; i < BUS_ROUTES.length; i++) {
+        var routeNum = BUS_ROUTES[i];
+        var $a = $('<a>')
+            .attr('href', '#' + routeNum)
+            .attr('data-route-num', routeNum)
+            .text(routeNum);
+        $fragment.append($a);
+    }
+    this.$el.html($fragment.html());
+};
+
+function Loader(app) {
+    this.state = app.state;
+    this.requests = [];
+}
+Loader.prototype.shouldCancelRequest = function(request) {
+    if (this.isRequestDone(request)) {
+        return false;
+    } else if (this.state.isBusRouteActive(request.routeNum)) {
+        return false;
+    }
+    return true;
+};
+// Cancel requests for bus routes that are no longer active.
+Loader.prototype.cancel = function() {
+    for (var i = 0; i < this.requests.length; i++) {
+        var request = this.requests[i];
+        if (this.shouldCancelRequest(request)) {
+            log('cancel', request);
+            request.xhr.reject();
+        }
+    }
+};
+Loader.prototype.isRequestDone = function(request) {
+    return request.xhr.state() !== 'pending';
+};
+Loader.prototype.prune = function() {
+    var result = [];
+    for (var i = 0; i < this.requests.length; i++) {
+        var request = this.requests[i];
+        if (this.isRequestDone(request)) {
+            log('prune', request);
+            continue;
+        }
+        result.push(request);
+    }
+    this.requests = result;
+};
+Loader.prototype.isAllStopsLoading = function() {
+    for (var i = 0; i < this.requests.length; i++) {
+        var request = this.requests[i];
+        if (request.kind === 'allstops') {
+            return true;
+        }
+    }
+    return false;
+};
+Loader.prototype.isRouteTraceLoading = function(routeNum) {
+    for (var i = 0; i < this.requests.length; i++) {
+        var request = this.requests[i];
+        if (request.kind === 'trace' && request.routeNum === routeNum) {
+            return true;
+        }
+    }
+    return false;
+};
+Loader.prototype.isStopsLoading = function(routeNum) {
+    for (var i = 0; i < this.requests.length; i++) {
+        var request = this.requests[i];
+        if (request.kind === 'stops' && request.routeNum === routeNum) {
+            return true;
+        }
+    }
+    return false;
+};
+Loader.prototype.isVehiclesLoading = function(routeNum) {
+    for (var i = 0; i < this.requests.length; i++) {
+        var request = this.requests[i];
+        if (request.kind === 'vehicles' && request.routeNum === routeNum) {
+            return true;
+        }
+    }
+    return false;
+};
+Loader.prototype.shouldLoadAllStops = function() {
+    if (this.state.isAllStopsLoaded()) {
+        return false;
+    } else if (this.isAllStopsLoading()) {
+        return false;
+    }
+    return this.state.isAllStopsNeeded();
+};
+// Don't load route trace if it's been loaded or loading is in progress.
+Loader.prototype.shouldLoadRouteTrace = function(routeNum) {
+    if (this.state.isRouteTraceLoaded(routeNum)) {
+        return false;
+    } else if (this.isRouteTraceLoading(routeNum)) {
+        return false;
+    }
+    return true;
+};
+// Don't load bus stops if they've been loaded or loading is in progress.
+Loader.prototype.shouldLoadStops = function(routeNum) {
+    if (this.state.isStopsLoaded(routeNum)) {
+        return false;
+    } else if (this.isStopsLoading(routeNum)) {
+        return false;
+    }
+    return true;
+};
+// Don't load vehicles if loading is in progress.
+Loader.prototype.shouldLoadVehicles = function(routeNum) {
+    if (this.state.isVehiclesRecent(routeNum)) {
+        return false;
+    } else if (this.isVehiclesLoading(routeNum)) {
+        return false;
+    }
+    return true;
+};
+Loader.prototype.fetch = function(url, args) {
+    log('fetch', url);
+    args = args || {};
+    args.dataType = args.dataType || 'json';
+    return $.ajax(url, args);
+};
+Loader.prototype.createRouteTraceRequest = function(routeNum) {
+    return {
+        kind: 'trace',
+        routeNum: routeNum,
+        xhr: this.fetch('static/trace/' + routeNum + '.json')
+    };
+};
+Loader.prototype.createStopsRequest = function(routeNum) {
+    return {
+        kind: 'stops',
+        routeNum: routeNum,
+        xhr: this.fetch('static/stops/' + routeNum + '.json')
+    };
+};
+Loader.prototype.createAllStopsRequest = function() {
+    return {
+        kind: 'allstops',
+        xhr: this.fetch('static/stops/all.json')
+    };
+};
+Loader.prototype.parseVehiclesData = function(data) {
+    var locs = data && data.bus || [];
+    for (var i = 0; i < locs.length; i++) {
+        locs[i].createdAt = new Date();
+    }
+    return locs;
+};
+Loader.prototype.createVehiclesRequest = function(routeNum) {
+    var url = '//www3.septa.org/api/TransitView/?route=' + routeNum;
+    var xhr = this.fetch(url, {
+            dataType: 'jsonp'
+        }).then(this.parseVehiclesData.bind(this));
+    return {
+        kind: 'vehicles',
+        routeNum: routeNum,
+        xhr: xhr
+    };
+};
+Loader.prototype.resolveRequest = function(request, data) {
+    log('resolve', request);
+    if (request.kind === 'trace') {
+        this.state.setRouteTrace(request.routeNum, data).update();
+    } else if (request.kind === 'stops') {
+        this.state.setStops(request.routeNum, data).update();
+    } else if (request.kind === 'allstops') {
+        this.state.setAllStops(data).update();
+    } else if (request.kind === 'vehicles') {
+        this.state.setVehicles(request.routeNum, data).update();
+    } else {
+        throw Error('Unable to resolve request');
+    }
+};
+Loader.prototype.load = function() {
+    var routeNums = this.state.getActiveBusRoutes();
+
+    var resolve = function(request) {
+        return function(data) {
+            this.resolveRequest(request, data);
+        }.bind(this);
+    }.bind(this);
+
+    for (var i = 0; i < routeNums.length; i++) {
+        var routeNum = routeNums[i];
+        if (this.shouldLoadRouteTrace(routeNum)) {
+            var request = this.createRouteTraceRequest(routeNum);
+            log('load trace', request);
+            request.xhr.done(resolve(request));
+            this.requests.push(request);
+        }
+        if (this.shouldLoadStops(routeNum)) {
+            var request = this.createStopsRequest(routeNum);
+            log('load stops', request);
+            request.xhr.done(resolve(request));
+            this.requests.push(request);
+        }
+        if (this.shouldLoadVehicles(routeNum)) {
+            var request = this.createVehiclesRequest(routeNum);
+            log('load vehicles', request);
+            request.xhr.done(resolve(request));
+            this.requests.push(request);
+        }
+    }
+
+    if (this.shouldLoadAllStops()) {
+        var request = this.createAllStopsRequest();
+        log('load all stops', request);
+        request.xhr.done(resolve(request));
+        this.requests.push(request);
+    }
+};
+Loader.prototype.update = function() {
+    this.cancel();
+    this.prune();
+    this.load();
+};
+
+function Router(onRouteChanged) {
+    this.onRouteChanged = onRouteChanged;
+    this.bindEvents();
+}
+Router.prototype.bindEvents = function() {
+    $(window).on('hashchange', this.onHashChange.bind(this));
+};
+Router.prototype.onHashChange = function() {
+    this.onRouteChanged(this.getRouteUrl());
+};
+Router.prototype.getRouteUrl = function() {
     var url = window.location.href;
     var parts = url.split('#');
+    return parts && parts[1] || '';
+};
+Router.prototype.route = function(url) {
+    window.location.href = url;
+};
 
-    if (parts.length > 0) {
-        parts.shift();
-    }
+function App() {
+    var initialState = {
+        menuActive: true
+    };
 
-    var arg = parts.length && parts[0];
+    this.state = new State(initialState, this.update.bind(this));
+    this.router = new Router(this.onRouteChanged.bind(this));
 
-    if (arg === 'map') {
-        hideMenu();
-    } else if (arg) {
-        var routeNum = parseRoutes(arg);
-        selectRoutes(routeNum);
-        hideMenu();
+    this.map = new Map(this);
+    this.header = new Header(this);
+    this.menu = new Menu(this);
+    this.loader = new Loader(this);
+
+    this.onRouteChanged(this.router.getRouteUrl());
+}
+App.prototype.update = function() {
+    log('update');
+    this.map.update();
+    this.header.update();
+    this.menu.update();
+    this.loader.update();
+};
+App.prototype.onRouteChanged = function(routeUrl) {
+    log('onRouteChanged', routeUrl);
+    if (routeUrl.length > 0) {
+        var routeNums = routeUrl.split(',');
+        this.showBusRoutes(routeNums);
     } else {
-        showMenu();
+        this.showMenu();
     }
-}
+};
+App.prototype.showMenu = function() {
+    log('showMenu');
+    this.state
+        .setMenuActive(true)
+        .setActiveBusRoutes([])
+        .update();
+};
+App.prototype.showBusRoutes = function(routeNums) {
+    log('showBusRoutes', routeNums);
+    this.state
+        .setMenuActive(false)
+        .setActiveBusRoutes(routeNums)
+        .update();
+};
 
-function init() {
-    initMap();
-    $(window).on('hashchange', executeRoute);
-    executeRoute();
-}
-
-init();
+window.app = new App();

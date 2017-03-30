@@ -72,7 +72,7 @@ body {
 
     z-index: 100;
 }
-#menu a {
+#menu > a {
     flex: 50%;
     margin: 1px 0;
     padding: 2vh 0;
@@ -80,6 +80,15 @@ body {
     font-weight: bold;
     text-align: center;
     text-decoration: none;
+}
+#menu > a:hover {
+    background: #eee;
+}
+#menu > a > .remove {
+    display: none;
+}
+#menu > a.active > .remove {
+    display: inline;
 }
 
 #map {
@@ -100,36 +109,47 @@ body {
     z-index: 1000;
 }
 
-.vehicle-marker-text {
-    width: 50px;
-    height: 50px;
-    line-height: 50px;
+.vehicle-marker {
+    background: #333;
+    border: 1px solid #fff;
     border-radius: 50px;
-    font-size: 18px;
     color: #fff;
+    font-size: 2em;
+    line-height: 50px;
     text-align: center;
-    background: #000;
-    border: 1px solid #333;
 }
-.vehicle-northbound .vehicle-marker-text,
-.vehicle-westbound .vehicle-marker-text { background-color: #ed1f24; }
-.vehicle-southbound .vehicle-marker-text,
-.vehicle-eastbound .vehicle-marker-text { background-color: #0072bc; }
+.vehicle-marker.condensed {
+    font-size: 1.3em;
+}
+.vehicle-marker.northbound,
+.vehicle-marker.westbound { background: #ed1f24; }
+.vehicle-marker.southbound,
+.vehicle-marker.eastbound { background: #0072bc; }
 
 .vehicle-marker-arrow {
-    /* Assumes arrow revolves around a 50px radius, with a 1px border */
-    /* Buffer of 0px outside radius */
     position: absolute;
-    top: 25px; /* radius / 2 */
-    left: 0; /* -buffer */
-    margin-top: -8px; /* font-size / 2 */
-    width: 52px; /* 50px + (1px border * 2) + (buffer * 2) */
-    font-size: 12px;
+    top: 0;
+    left: 0;
+    width: 50px;
+    height: 50px;
+    font-size: 0.5em;
     text-align: right;
-    pointer-events: none;
-    color: #fff;
 }
+.vehicle-marker-arrow:after {
+    content: "\27a4";
+}
+
+.vehicle-marker.eastbound > .vehicle-marker-arrow { transform: rotate(0); }
+.vehicle-marker.eastbound > .vehicle-marker-arrow { transform: rotate(0); }
+.vehicle-marker.southbound > .vehicle-marker-arrow { transform: rotate(90deg); }
+.vehicle-marker.westbound > .vehicle-marker-arrow { transform: rotate(180deg); }
+.vehicle-marker.northbound > .vehicle-marker-arrow { transform: rotate(270deg); }
 
 .leaflet-control-locate span {
     line-height: 30px;
+}
+
+.bus-stop-marker {
+    background: #fff;
+    border: 1px solid #999;
 }
