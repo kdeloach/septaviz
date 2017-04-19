@@ -82,6 +82,10 @@ State.prototype.setMenuActive = function(value) {
     this._nextState.menuActive = value;
     return this;
 };
+State.prototype.setFitBoundsAt = function(latlng) {
+    this._nextState.fitBoundsAt = latlng;
+    return this;
+};
 State.prototype.setLocation = function(latlng) {
     this._nextState.location = latlng;
     return this;
@@ -152,6 +156,9 @@ State.prototype.getVehicles = function(routeNum) {
 State.prototype.getLocation = function() {
     return this._state.location;
 };
+State.prototype.getFitBoundsAt = function() {
+    return this._state.fitBoundsAt;
+};
 State.prototype.isAllStopsLoaded = function() {
     return !!this.getAllStops();
 };
@@ -217,6 +224,7 @@ Map.prototype.bindEvents = function() {
 Map.prototype.onLocationFound = function(e) {
     this.map.stopLocate();
     this.state.setLocation(e.latlng)
+        .setFitBoundsAt(e.latlng)
         .setAllStopsNeeded()
         .update();
 };
@@ -264,7 +272,11 @@ Map.prototype.locateBusRoutes = function() {
     }.bind(this));
     this.searchLayer.addLayer(marker);
 
-    this.map.fitBounds(circle.getBounds());
+    // Zoom to location after clicking "locate" button the first time.
+    // Dragging the locate marker should not trigger a zoom.
+    if (latlng === this.state.getFitBoundsAt()) {
+        this.map.fitBounds(circle.getBounds());
+    }
 
     var routeNums = this.findRoutesWithinBounds(bounds, stops);
     var url = '#' + routeNums.join(',');
