@@ -265,7 +265,8 @@ Map.prototype.locateBusRoutes = function() {
     var bounds = circle.getBounds();
 
     var marker = new L.Marker(latlng, {
-        draggable: true
+        draggable: true,
+        zIndexOffset: 10000
     });
     marker.on('dragend', function(e) {
         this.state.setLocation(marker.getLatLng()).update();
@@ -393,8 +394,7 @@ Map.prototype.renderVehicles = function() {
                     className: this.getMarkerClassName(routeNum, loc),
                     iconSize: [50, 50],
                     html: this.getMarkerHtml(routeNum, loc)
-                }),
-                zIndexOffset: 200
+                })
             });
             marker.on('popupopen', updateMarkerContent(loc));
             marker.bindPopup('', {
