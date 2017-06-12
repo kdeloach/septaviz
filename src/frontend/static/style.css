@@ -37,7 +37,7 @@ body {
 
 .header-btn {
     float: left;
-    width: 120px;
+    padding: 0 10px;
     text-decoration: none;
     text-align: center;
     color: #fff;
@@ -81,14 +81,12 @@ body {
     text-align: center;
     text-decoration: none;
 }
-#menu > a:hover {
+#menu > a.wide {
+    flex: 100%;
+}
+#menu > a:hover,
+#menu > a.active {
     background: #eee;
-}
-#menu > a > .remove {
-    display: none;
-}
-#menu > a.active > .remove {
-    display: inline;
 }
 
 #map {
