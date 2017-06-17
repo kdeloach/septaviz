@@ -25,9 +25,9 @@ body {
 }
 #header > h1 > a {
     float: left;
-    height: 50px;
-    padding-right: 20px;
     text-decoration: none;
+    font-variant: small-caps;
+    font-weight: normal;
     color: #fff;
 }
 #header > h1 > a > img {
@@ -37,13 +37,17 @@ body {
 
 .header-btn {
     float: left;
-    padding: 0 10px;
+    padding: 0 20px;
     text-decoration: none;
     text-align: center;
     color: #fff;
 }
 .header-btn-active {
     background: #999;
+}
+.header-btn-icon {
+    float: right;
+    font-size: 20pt;
 }
 
 #loading {
@@ -68,16 +72,15 @@ body {
     height: calc(100% - 50px);
     overflow: auto;
     background: #eee;
-    font-size: 6vh;
+    font-size: 4vh;
 
     z-index: 100;
 }
 #menu > a {
-    flex: 50%;
+    flex: 20%;
     margin: 1px 0;
-    padding: 2vh 0;
+    padding: 1vh 0;
     background: #fff;
-    font-weight: bold;
     text-align: center;
     text-decoration: none;
 }

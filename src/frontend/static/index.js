@@ -56,6 +56,10 @@ function Map() {
         });
     });
 
+    map.on('locationerror', function(e) {
+        alert(e.message);
+    });
+
     this.vehicleLayer = new L.FeatureGroup();
     this.routeTraceLayer = new L.FeatureGroup();
     this.searchLayer = new L.FeatureGroup();
@@ -218,22 +222,22 @@ function removeVehicles(routeNum) {
 }
 
 function initHeader() {
-    var $menu = $('#header > #menu-btn');
-    var $locate = $('#header > #locate-btn');
+    var $menu = $('#menu-btn');
+    var $find = $('#find-btn');
 
     $menu.on('click', function(e) {
         e.preventDefault();
         toggleMenu();
     });
 
-    $locate.on('click', function(e) {
+    $find.on('click', function(e) {
         e.preventDefault();
         App.map.leafletMap.locate({
             watch: false,
             setView: true,
             maxZoom: 16
         });
-        $locate.addClass('header-btn-active');
+        $find.addClass('header-btn-active');
         hideMenu();
     });
 }
@@ -254,10 +258,6 @@ function initMenu() {
 
     // Template
     var $fragment = $('<div>');
-    $fragment.append($('<a>')
-        .attr('class', 'wide')
-        .attr('href', '#')
-        .text('Reset'));
     for (var i = 0; i < BUS_ROUTES.length; i++) {
         var routeNum = BUS_ROUTES[i];
         var $a = $('<a>')
