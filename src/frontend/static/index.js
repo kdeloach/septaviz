@@ -221,7 +221,6 @@ function removeVehicles(routeNum) {
 function initHeader() {
     var $trolley = $('#trolley-btn');
     var $bus = $('#bus-btn');
-    var $find = $('#find-btn');
 
     $trolley.on('click', function(e) {
         e.preventDefault();
@@ -230,17 +229,6 @@ function initHeader() {
 
     $bus.on('click', function(e) {
         e.preventDefault();
-        toggleBusList();
-    });
-
-    $find.on('click', function(e) {
-        e.preventDefault();
-        App.map.leafletMap.locate({
-            watch: false,
-            setView: true,
-            maxZoom: 16
-        });
-        $find.addClass('header-btn-active');
         toggleBusList();
     });
 }
@@ -370,14 +358,11 @@ function getUrl() {
     return parts && parts[1] || '';
 }
 
-function filterEmpty(arr) {
-    return arr.filter(function(n) {
-        return n;
-    });
-}
-
 function getBusRoutesFromUrl(url) {
-    return filterEmpty(url.split(','));
+    var parts = url.split(',');
+    return parts.filter(function(item) {
+        return item.length > 0 && item !== 'locate';
+    });
 }
 
 function getActiveBusRoutes() {
@@ -440,6 +425,14 @@ function onHashChange() {
         removeRoute(toRemove[i]);
     }
 
+    if (nextUrl === 'locate') {
+        App.map.leafletMap.locate({
+            watch: false,
+            setView: true,
+            maxZoom: 16
+        });
+    }
+
     App.url = nextUrl;
 }
 
@@ -452,8 +445,9 @@ function init() {
     $(window).on('hashchange', onHashChange);
     onHashChange();
 
-    if (getActiveBusRoutes().length === 0) {
-        showBusList();
+    if (getActiveBusRoutes().length > 0
+            || App.url === 'locate') {
+        hideBusList();
     }
 }
 
