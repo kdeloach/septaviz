@@ -99,6 +99,16 @@ function findRoutesWithinBounds(bounds, stops) {
     return result;
 }
 
+function reset() {
+    // Deactivate menu buttons
+    $('header-btn').removeClass('header-btn-active');
+    // Deactivate lists
+    hideBusList();
+    hideTrolleyList();
+    // Clear "locate" marker
+    App.map.searchLayer.clearLayers();
+}
+
 function locateRoutes(stops, latlng) {
     App.map.searchLayer.clearLayers();
 
@@ -219,8 +229,11 @@ function removeVehicles(routeNum) {
 }
 
 function initHeader() {
+    var $banner = $('#banner-btn');
     var $trolley = $('#trolley-btn');
     var $bus = $('#bus-btn');
+
+    $banner.on('click', reset);
 
     $trolley.on('click', function(e) {
         e.preventDefault();
@@ -242,8 +255,11 @@ function initRouteList() {
         if (routeNum) {
             e.preventDefault();
             toggleRoute(routeNum);
-            hideBusList();
-            hideTrolleyList();
+            // Delay to prevent animation flicker when removing routes
+            setTimeout(function() {
+                hideBusList();
+                hideTrolleyList();
+            }, 1);
         }
     });
 }

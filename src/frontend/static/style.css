@@ -4,19 +4,17 @@ body {
     overflow: hidden;
 }
 
-.hide {
-    display: none;
-}
-
 #header {
     top: 0;
     left: 0;
     position: absolute;
+    min-width: 400px;
     width: 100%;
     background: #333;
     color: #fff;
     height: 50px;
     line-height: 50px;
+    overflow: hidden;
     z-index: 1000;
 }
 #header > h1 {
@@ -36,18 +34,15 @@ body {
 }
 
 .header-btn {
-    float: left;
+    float: right;
     padding: 0 20px;
     text-decoration: none;
     text-align: center;
+    font-size: 20pt;
     color: #fff;
 }
 .header-btn-active {
     background: #999;
-}
-.header-btn-icon {
-    float: right;
-    font-size: 20pt;
 }
 
 #loading {
@@ -60,7 +55,7 @@ body {
     z-index: 1000;
 }
 
-#menu {
+.route-list {
     position: absolute;
     top: 50px;
     left: 0;
@@ -76,19 +71,21 @@ body {
 
     z-index: 100;
 }
-#menu > a {
-    flex: 20%;
-    margin: 1px 0;
-    padding: 1vh 0;
+.route-list > a {
+    padding: 2vh 0;
+    min-width: 75px;
     background: #fff;
     text-align: center;
     text-decoration: none;
 }
-#menu > a.wide {
+.route-list.flex-25 > a {
+    flex: 25%;
+}
+.route-list.flex-100 > a {
     flex: 100%;
 }
-#menu > a:hover,
-#menu > a.active {
+.route-list > a:hover,
+.route-list > a.active {
     background: #eee;
 }
 
@@ -153,4 +150,8 @@ body {
 .bus-stop-marker {
     background: #fff;
     border: 1px solid #999;
+}
+
+.hide {
+    display: none;
 }
