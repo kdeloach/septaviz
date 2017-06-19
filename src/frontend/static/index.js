@@ -4,6 +4,8 @@ var DEFAULT_ZOOM = 13;
 // Detect bus routes within this radius (meters)
 var NEARBY_BUS_RADIUS = 500;
 
+var CITY_HALL = [39.952584, -75.165222];
+
 // Source: http://bl.ocks.org/aaizemberg/78bd3dade9593896a59d
 // google 10c
 var PALETTE = [
@@ -47,14 +49,12 @@ function Map() {
     }));
 
     map.on('locationfound', function(e) {
-        var latlng = e.latlng;
-        fetchAllStops().then(function(stops) {
-            locateRoutes(stops, latlng);
-        });
+        locate(e.latlng);
     });
 
     map.on('locationerror', function(e) {
         alert(e.message);
+        locate(CITY_HALL);
     });
 
     this.vehicleLayer = new L.FeatureGroup();
@@ -97,6 +97,12 @@ function findRoutesWithinBounds(bounds, stops) {
         }
     }
     return result;
+}
+
+function locate(latlng) {
+    fetchAllStops().then(function(stops) {
+        locateRoutes(stops, latlng);
+    });
 }
 
 function reset() {
