@@ -101,6 +101,8 @@ function findRoutesWithinBounds(bounds, stops) {
 
 function locate(latlng) {
     fetchAllStops().then(function(stops) {
+        hideBusList();
+        hideTrolleyList();
         locateRoutes(stops, latlng);
     });
 }
