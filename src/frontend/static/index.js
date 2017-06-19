@@ -1,6 +1,3 @@
-// Generated with scripts/make_routes_json.py
-var BUS_ROUTES = ["1", "2", "3", "4", "5", "6", "7", "8", "9", "12", "14", "15B", "16", "17", "18", "19", "20", "21", "22", "23", "24", "25", "26", "27", "28", "29", "30", "31", "32", "33", "35", "37", "38", "39", "40", "42", "43", "44", "45", "46", "47", "47M", "48", "50", "52", "53", "54", "55", "56", "57", "58", "59", "60", "61", "62", "64", "65", "66", "67", "68", "70", "73", "75", "77", "78", "79", "80", "84", "88", "89", "90", "91", "92", "93", "94", "95", "96", "97", "98", "99", "103", "104", "105", "106", "107", "108", "109", "110", "111", "112", "113", "114", "115", "117", "118", "119", "120", "123", "124", "125", "126", "127", "128", "129", "130", "131", "132", "133", "139", "150", "201", "204", "205", "206", "310", "BSO", "MFO", "G", "H", "J", "K", "L", "R", "XH", "LUCY"];
-
 var DEFAULT_CENTER = [39.952584, -75.165222];
 var DEFAULT_ZOOM = 13;
 
@@ -222,12 +219,12 @@ function removeVehicles(routeNum) {
 }
 
 function initHeader() {
-    var $menu = $('#menu-btn');
+    var $bus = $('#bus-btn');
     var $find = $('#find-btn');
 
-    $menu.on('click', function(e) {
+    $bus.on('click', function(e) {
         e.preventDefault();
-        toggleMenu();
+        toggleBusList();
     });
 
     $find.on('click', function(e) {
@@ -238,53 +235,39 @@ function initHeader() {
             maxZoom: 16
         });
         $find.addClass('header-btn-active');
-        hideMenu();
+        toggleBusList();
     });
 }
 
-function initMenu() {
-    var $el = $('#menu');
-
-    // Events
-    $el.on('click', 'a', function(e) {
+function initRouteList() {
+    var $bus = $('#bus-list');
+    $bus.on('click', 'a', function(e) {
         var $a = $(e.target);
         var routeNum = $a.attr('data-route-num');
         if (routeNum) {
             e.preventDefault();
             toggleRoute(routeNum);
-            toggleMenu();
+            hideBusList();
         }
     });
-
-    // Template
-    var $fragment = $('<div>');
-    for (var i = 0; i < BUS_ROUTES.length; i++) {
-        var routeNum = BUS_ROUTES[i];
-        var $a = $('<a>')
-            .attr('href', '#' + routeNum)
-            .attr('data-route-num', routeNum)
-            .text(routeNum);
-        $fragment.append($a);
-    }
-    $el.html($fragment.html());
 }
 
-function toggleMenu() {
-    if ($('#menu').is(':visible')) {
-        hideMenu();
+function toggleBusList() {
+    if ($('#bus-list').is(':visible')) {
+        hideBusList();
     } else {
-        showMenu();
+        showBusList();
     }
 }
 
-function showMenu() {
-    $('#menu').show();
-    $('#menu-btn').addClass('header-btn-active');
+function showBusList() {
+    $('#bus-list').show();
+    $('#bus-btn').addClass('header-btn-active');
 }
 
-function hideMenu() {
-    $('#menu').hide();
-    $('#menu-btn').removeClass('header-btn-active');
+function hideBusList() {
+    $('#bus-list').hide();
+    $('#bus-btn').removeClass('header-btn-active');
 }
 
 function toggleRoute(routeNum) {
@@ -297,7 +280,7 @@ function toggleRoute(routeNum) {
 }
 
 function addRoute(routeNum) {
-    var $a = $('#menu [data-route-num="' + routeNum + '"]');
+    var $a = $('#bus-list [data-route-num="' + routeNum + '"]');
     $a.addClass('active');
 
     fetchRouteTrace(routeNum)
@@ -307,7 +290,7 @@ function addRoute(routeNum) {
 }
 
 function removeRoute(routeNum) {
-    var $a = $('#menu [data-route-num="' + routeNum + '"]');
+    var $a = $('#bus-list [data-route-num="' + routeNum + '"]');
     $a.removeClass('active');
 
     removeRouteTrace(routeNum);
@@ -435,16 +418,14 @@ function onHashChange() {
 function init() {
     App.map = new Map();
 
-    initMenu();
     initHeader();
+    initRouteList();
 
     $(window).on('hashchange', onHashChange);
     onHashChange();
 
     if (getActiveBusRoutes().length === 0) {
-        showMenu();
-    } else {
-        hideMenu();
+        showBusList();
     }
 }
 
