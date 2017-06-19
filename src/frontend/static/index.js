@@ -239,7 +239,10 @@ function initHeader() {
     var $trolley = $('#trolley-btn');
     var $bus = $('#bus-btn');
 
-    $banner.on('click', reset);
+    $banner.on('click', function(e) {
+        // Delay to prevent animation flicker
+        setTimeout(reset, 1);
+    });
 
     $trolley.on('click', function(e) {
         e.preventDefault();
