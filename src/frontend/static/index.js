@@ -219,8 +219,14 @@ function removeVehicles(routeNum) {
 }
 
 function initHeader() {
+    var $trolley = $('#trolley-btn');
     var $bus = $('#bus-btn');
     var $find = $('#find-btn');
+
+    $trolley.on('click', function(e) {
+        e.preventDefault();
+        toggleTrolleyList();
+    });
 
     $bus.on('click', function(e) {
         e.preventDefault();
@@ -241,33 +247,55 @@ function initHeader() {
 
 function initRouteList() {
     var $bus = $('#bus-list');
-    $bus.on('click', 'a', function(e) {
+    var $trolley = $('#trolley-list');
+    $bus.add($trolley).on('click', 'a', function(e) {
         var $a = $(e.target);
         var routeNum = $a.attr('data-route-num');
         if (routeNum) {
             e.preventDefault();
             toggleRoute(routeNum);
             hideBusList();
+            hideTrolleyList();
         }
     });
 }
 
 function toggleBusList() {
-    if ($('#bus-list').is(':visible')) {
-        hideBusList();
-    } else {
+    if ($('#bus-list').hasClass('hide')) {
         showBusList();
+    } else {
+        hideBusList();
     }
 }
 
 function showBusList() {
-    $('#bus-list').show();
+    hideTrolleyList();
+    $('#bus-list').removeClass('hide');
     $('#bus-btn').addClass('header-btn-active');
 }
 
 function hideBusList() {
-    $('#bus-list').hide();
+    $('#bus-list').addClass('hide');
     $('#bus-btn').removeClass('header-btn-active');
+}
+
+function toggleTrolleyList() {
+    if ($('#trolley-list').hasClass('hide')) {
+        showTrolleyList();
+    } else {
+        hideTrolleyList();
+    }
+}
+
+function showTrolleyList() {
+    hideBusList();
+    $('#trolley-list').removeClass('hide');
+    $('#trolley-btn').addClass('header-btn-active');
+}
+
+function hideTrolleyList() {
+    $('#trolley-list').addClass('hide');
+    $('#trolley-btn').removeClass('header-btn-active');
 }
 
 function toggleRoute(routeNum) {
@@ -280,7 +308,7 @@ function toggleRoute(routeNum) {
 }
 
 function addRoute(routeNum) {
-    var $a = $('#bus-list [data-route-num="' + routeNum + '"]');
+    var $a = $('[data-route-num="' + routeNum + '"]');
     $a.addClass('active');
 
     fetchRouteTrace(routeNum)
@@ -290,7 +318,7 @@ function addRoute(routeNum) {
 }
 
 function removeRoute(routeNum) {
-    var $a = $('#bus-list [data-route-num="' + routeNum + '"]');
+    var $a = $('[data-route-num="' + routeNum + '"]');
     $a.removeClass('active');
 
     removeRouteTrace(routeNum);
