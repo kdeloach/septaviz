@@ -152,7 +152,7 @@ function addRouteTrace(geojson) {
 function removeRouteTrace(routeNum) {
     App.map.routeTraceLayer.eachLayer(function(layer) {
         if (layer.routeNum === routeNum) {
-            layer.remove();
+            App.map.routeTraceLayer.removeLayer(layer);
         }
     });
 }
@@ -231,7 +231,7 @@ function addVehicles(vehicles) {
 function removeVehicles(routeNum) {
     App.map.vehicleLayer.eachLayer(function(layer) {
         if (layer.routeNum === routeNum) {
-            layer.remove();
+            App.map.vehicleLayer.removeLayer(layer);
         }
     });
 }
