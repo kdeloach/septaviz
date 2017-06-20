@@ -30,6 +30,18 @@ var App = {
     url: ''
 };
 
+var ReloadControl = L.Control.extend({
+    onAdd: function(map) {
+        var $el = $('' +
+            '<div class="leaflet-control leaflet-bar">' +
+                '<a href="#reload" title="Reload" aria-label="Reload" ' +
+                    'role="button" class="leaflet-control-zoom-in">&#8635;</a>' +
+            '</div>'
+        );
+        return $el.get(0);
+    }
+});
+
 function Map() {
     var map = new L.Map('map', {
         minZoom: 10,
@@ -45,6 +57,10 @@ function Map() {
     map.addLayer(baseLayer);
 
     map.addControl(new L.Control.Zoom({
+        position: 'bottomright'
+    }));
+
+    map.addControl(new ReloadControl({
         position: 'bottomright'
     }));
 
@@ -139,20 +155,38 @@ function locateRoutes(stops, latlng) {
 }
 
 function addRouteTrace(geojson) {
+    var routeNum = geojson.routeNum;
+    if (routeTraceExists(routeNum)) {
+        return;
+    }
     var layer = new L.GeoJSON(geojson, {
         color: nextRouteTraceColor(),
         weight: 3
     });
-    layer.routeNum = geojson.routeNum;
+    layer.routeNum = routeNum;
     App.map.routeTraceLayer.addLayer(layer);
 }
 
+function routeTraceExists(routeNum) {
+    var layers = App.map.routeTraceLayer.getLayers();
+    for (var i = 0; i < layers.length; i++) {
+        var layer = layers[i];
+        if (layer.routeNum === routeNum) {
+            return true;
+        }
+    }
+    return false;
+}
+
 function removeRouteTrace(routeNum) {
-    App.map.routeTraceLayer.eachLayer(function(layer) {
+    var layers = App.map.routeTraceLayer.getLayers();
+    for (var i = 0; i < layers.length; i++) {
+        var layer = layers[i];
         if (layer.routeNum === routeNum) {
             App.map.routeTraceLayer.removeLayer(layer);
+            break;
         }
-    });
+    }
 }
 
 function getMarkerDirection(loc) {
@@ -333,6 +367,10 @@ function addRoute(routeNum) {
     activateRoute(routeNum);
 
     fetchVehicles(routeNum)
+        .then(function(vehicles) {
+            removeVehicles(routeNum);
+            return vehicles;
+        })
         .then(addVehicles);
 
     return fetchRouteTrace(routeNum)
@@ -408,7 +446,8 @@ function getUrl() {
 function getBusRoutesFromUrl(url) {
     var parts = url.split(',');
     return parts.filter(function(item) {
-        return item.length > 0 && item !== 'locate';
+        return item.length > 0 &&
+            item !== 'locate' && item !== 'reload';
     });
 }
 
@@ -482,9 +521,15 @@ function onHashChange() {
         });
     } else if (prevUrl === 'locate') {
         each(toAdd, addRoute);
+    } else if (nextUrl === 'reload') {
+        var url = '#' + toRemove.join(',');
+        setUrl(url);
+    } else if (prevUrl === 'reload') {
+        each(toAdd, addRoute);
     } else {
         each(toRemove, removeRoute);
         each(toAdd, addRouteThenFitBounds);
+    }
 }
 
 function init() {

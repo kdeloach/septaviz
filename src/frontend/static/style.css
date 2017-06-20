@@ -144,10 +144,6 @@ body {
 .westbound > .vehicle-marker-arrow { transform: rotate(180deg); }
 .northbound > .vehicle-marker-arrow { transform: rotate(270deg); }
 
-.leaflet-control-locate span {
-    line-height: 30px;
-}
-
 .bus-stop-marker {
     background: #fff;
     border: 1px solid #999;
