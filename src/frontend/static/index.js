@@ -326,10 +326,11 @@ function addRoute(routeNum) {
     var $a = $('[data-route-num="' + routeNum + '"]');
     $a.addClass('active');
 
-    fetchRouteTrace(routeNum)
-        .then(addRouteTrace);
-    return fetchVehicles(routeNum)
+    fetchVehicles(routeNum)
         .then(addVehicles);
+
+    return fetchRouteTrace(routeNum)
+        .then(addRouteTrace);
 }
 
 function removeRoute(routeNum) {
@@ -415,10 +416,10 @@ function getUrlWithoutRoute(routeNum) {
 }
 
 function fitBounds() {
-    var bounds = App.map.vehicleLayer.getBounds();
+    var bounds = App.map.routeTraceLayer.getBounds();
     if (bounds.isValid()) {
         App.map.leafletMap.fitBounds(bounds, {
-            padding: [10, 10]
+            padding: [10, 50]
         });
     }
 }
@@ -444,8 +445,10 @@ function onHashChange() {
     var toAdd = difference(nextRoutes, prevRoutes);
     var toRemove = difference(prevRoutes, nextRoutes);
 
+    var promises = [];
+
     for (var i = 0; i < toAdd.length; i++) {
-        addRoute(toAdd[i]);
+        promises.push(addRoute(toAdd[i]));
     }
 
     for (var i = 0; i < toRemove.length; i++) {
@@ -458,6 +461,12 @@ function onHashChange() {
             setView: true,
             maxZoom: 16
         });
+    }
+
+    // Call fitBounds after all routes loaded, except after clicking
+    // the locate button.
+    if (prevUrl !== 'locate' && promises.length > 0) {
+        $.when.apply(null, promises).then(fitBounds);
     }
 
     App.url = nextUrl;
