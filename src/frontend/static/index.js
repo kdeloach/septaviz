@@ -193,13 +193,14 @@ function getMarkerContent(loc) {
     var now = new Date();
     var offsetMs = parseInt(loc.Offset_sec, 10) * 1000;
     var reportedAt = new Date(loc.createdAt.getTime() - offsetMs);
-    var elapsedSec = (now.getTime() - reportedAt.getTime()) / 1000;
+    var elapsedSec = Math.round((now.getTime() - reportedAt.getTime()) / 1000);
     var min = Math.round(elapsedSec / 60);
-    var s = min === 1 ? '' : 's';
-    if (min < 1) {
-        return 'Updated less than 1 minute ago';
-    } else {
+    if (min > 1) {
+        var s = min === 1 ? '' : 's';
         return 'Updated ' + min + ' minute' + s + ' ago';
+    } else {
+        var s = elapsedSec === 1 ? '' : 's';
+        return 'Updated ' + elapsedSec + ' second' + s + ' ago';
     }
 }
 
