@@ -405,7 +405,7 @@ function fetch(url, args) {
 }
 
 function fetchRouteTrace(routeNum) {
-    return fetch('static/stops/' + routeNum + '.geojson')
+    return fetch('static/stops/' + routeNum + '.geojson', { cache: true })
         .then(function(geojson) {
             geojson.routeNum = routeNum;
             return geojson;
@@ -413,7 +413,7 @@ function fetchRouteTrace(routeNum) {
 }
 
 function fetchAllStops() {
-    return fetch('static/stops/all.json');
+    return fetch('static/stops/all.json', { cache: true });
 }
 
 function parseVehicles(routeNum, data) {
@@ -427,7 +427,7 @@ function parseVehicles(routeNum, data) {
 
 function fetchVehicles(routeNum) {
     var url = '//www3.septa.org/api/TransitView/?route=' + routeNum;
-    return fetch(url, { dataType: 'jsonp' })
+    return fetch(url, { dataType: 'jsonp', cache: false })
         .then(function(data) {
             return parseVehicles(routeNum, data);
         });
