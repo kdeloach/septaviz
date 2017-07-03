@@ -101,8 +101,6 @@ function findRoutesWithinBounds(bounds, stops) {
 
 function locate(latlng) {
     fetchAllStops().then(function(stops) {
-        hideBusList();
-        hideTrolleyList();
         locateRoutes(stops, latlng);
     });
 }
@@ -332,8 +330,7 @@ function toggleRoute(routeNum) {
 }
 
 function addRoute(routeNum) {
-    var $a = $('[data-route-num="' + routeNum + '"]');
-    $a.addClass('active');
+    activateRoute(routeNum);
 
     fetchVehicles(routeNum)
         .then(addVehicles);
@@ -342,12 +339,25 @@ function addRoute(routeNum) {
         .then(addRouteTrace);
 }
 
-function removeRoute(routeNum) {
-    var $a = $('[data-route-num="' + routeNum + '"]');
-    $a.removeClass('active');
+function addRouteThenFitBounds(routeNum) {
+    addRoute(routeNum)
+        .then(fitBounds);
+}
 
+function removeRoute(routeNum) {
+    deactivateRoute(routeNum);
     removeRouteTrace(routeNum);
     removeVehicles(routeNum);
+}
+
+function activateRoute(routeNum) {
+    var $a = $('[data-route-num="' + routeNum + '"]');
+    $a.addClass('active');
+}
+
+function deactivateRoute(routeNum) {
+    var $a = $('[data-route-num="' + routeNum + '"]');
+    $a.removeClass('active');
 }
 
 function fetch(url, args) {
@@ -444,9 +454,16 @@ function difference(a, b) {
     return result;
 }
 
+function each(items, fn) {
+    for (var i = 0; i < items.length; i++) {
+        fn(items[i]);
+    }
+}
+
 function onHashChange() {
     var prevUrl = App.url;
     var nextUrl = getUrl();
+    App.url = nextUrl;
 
     var prevRoutes = getBusRoutesFromUrl(prevUrl);
     var nextRoutes = getBusRoutesFromUrl(nextUrl);
@@ -454,31 +471,20 @@ function onHashChange() {
     var toAdd = difference(nextRoutes, prevRoutes);
     var toRemove = difference(prevRoutes, nextRoutes);
 
-    var promises = [];
-
-    for (var i = 0; i < toAdd.length; i++) {
-        promises.push(addRoute(toAdd[i]));
-    }
-
-    for (var i = 0; i < toRemove.length; i++) {
-        removeRoute(toRemove[i]);
-    }
-
     if (nextUrl === 'locate') {
+        hideBusList();
+        hideTrolleyList();
+        each(toRemove, removeRoute);
         App.map.leafletMap.locate({
             watch: false,
             setView: true,
             maxZoom: 16
         });
-    }
-
-    // Call fitBounds after all routes loaded, except after clicking
-    // the locate button.
-    if (prevUrl !== 'locate' && promises.length > 0) {
-        $.when.apply(null, promises).then(fitBounds);
-    }
-
-    App.url = nextUrl;
+    } else if (prevUrl === 'locate') {
+        each(toAdd, addRoute);
+    } else {
+        each(toRemove, removeRoute);
+        each(toAdd, addRouteThenFitBounds);
 }
 
 function init() {
