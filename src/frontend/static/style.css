@@ -107,7 +107,7 @@ body {
     z-index: 1000;
 }
 
-.vehicle-marker {
+.vehicle-marker-inner {
     background: #333;
     border: 1px solid #fff;
     border-radius: 50px;
@@ -115,14 +115,16 @@ body {
     font-size: 2em;
     line-height: 50px;
     text-align: center;
+
+    transition-duration: 100ms;
+    transform-origin: 50% 50%;
 }
 .vehicle-marker.condensed {
     font-size: 1.3em;
 }
-.vehicle-marker.northbound,
-.vehicle-marker.westbound { background: #ed1f24; }
-.vehicle-marker.southbound,
-.vehicle-marker.eastbound { background: #0072bc; }
+
+.northbound, .westbound { background: #ed1f24; }
+.southbound, .eastbound { background: #0072bc; }
 
 .vehicle-marker-arrow {
     position: absolute;
@@ -137,11 +139,10 @@ body {
     content: "\27a4";
 }
 
-.vehicle-marker.eastbound > .vehicle-marker-arrow { transform: rotate(0); }
-.vehicle-marker.eastbound > .vehicle-marker-arrow { transform: rotate(0); }
-.vehicle-marker.southbound > .vehicle-marker-arrow { transform: rotate(90deg); }
-.vehicle-marker.westbound > .vehicle-marker-arrow { transform: rotate(180deg); }
-.vehicle-marker.northbound > .vehicle-marker-arrow { transform: rotate(270deg); }
+.eastbound > .vehicle-marker-arrow { transform: rotate(0); }
+.southbound > .vehicle-marker-arrow { transform: rotate(90deg); }
+.westbound > .vehicle-marker-arrow { transform: rotate(180deg); }
+.northbound > .vehicle-marker-arrow { transform: rotate(270deg); }
 
 .leaflet-control-locate span {
     line-height: 30px;

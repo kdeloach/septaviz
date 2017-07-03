@@ -171,7 +171,7 @@ function getMarkerDirection(loc) {
 
 function getMarkerClassName(loc) {
     var result = [
-        'vehicle-marker',
+        'vehicle-marker-inner',
         this.getMarkerDirection(loc)
     ];
     if (loc.routeNum.length > 2) {
@@ -182,11 +182,12 @@ function getMarkerClassName(loc) {
 
 function getMarkerHtml(loc) {
     var result = [loc.routeNum];
+    var className = getMarkerClassName(loc);
     var direction = getMarkerDirection(loc);
     if (direction.length) {
         result.push('<div class="vehicle-marker-arrow"></div>');
     }
-    return result.join('');
+    return '<div class="' + className + '">' + result.join('') + '</div>';
 }
 
 function getMarkerContent(loc) {
@@ -209,11 +210,18 @@ function addVehicles(vehicles) {
         var marker = new L.Marker(loc, {
             icon: new L.DivIcon({
                 iconSize: [50, 50],
-                className: getMarkerClassName(loc),
+                className: 'vehicle-marker',
                 html: getMarkerHtml(loc)
             })
         });
         marker.routeNum = loc.routeNum;
+        marker.on('add', function(e) {
+            var $el = $('.vehicle-marker-inner', e.target._icon);
+            $el.css('transform', 'scale(0)');
+            setTimeout(function() {
+                $el.css('transform', 'scale(1)');
+            }, 100 + Math.random() * 100);
+        });
         marker.on('popupopen', function(e) {
             e.popup.setContent(getMarkerContent(loc));
         });
