@@ -3,6 +3,8 @@
 set -e
 set -u
 
+git rev-parse HEAD > ./src/frontend/version.txt
+
 docker-compose run --rm \
     --entrypoint aws \
     --workdir /usr/src/frontend \
