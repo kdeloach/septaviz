@@ -228,11 +228,12 @@ function getMarkerContent(loc) {
     var reportedAt = new Date(loc.createdAt.getTime() - offsetMs);
     var elapsedSec = Math.round((now.getTime() - reportedAt.getTime()) / 1000);
     var min = Math.round(elapsedSec / 60);
+    var s;
     if (min > 1) {
-        var s = min === 1 ? '' : 's';
+        s = min === 1 ? '' : 's';
         return 'Updated ' + min + ' minute' + s + ' ago';
     } else {
-        var s = elapsedSec === 1 ? '' : 's';
+        s = elapsedSec === 1 ? '' : 's';
         return 'Updated ' + elapsedSec + ' second' + s + ' ago';
     }
 }
@@ -541,8 +542,8 @@ function init() {
     $(window).on('hashchange', onHashChange);
     onHashChange();
 
-    if (getActiveBusRoutes().length > 0
-            || App.url === 'locate') {
+    if (getActiveBusRoutes().length > 0 ||
+            App.url === 'locate') {
         hideBusList();
     }
 }
