@@ -368,6 +368,9 @@ function toggleRoute(routeNum) {
   } else {
     setUrl(getUrlWithRoute(routeNum));
   }
+  setTimeout(function () {
+    fitBounds();
+  }, 200);
 }
 
 function addRoute(routeNum) {
@@ -551,7 +554,7 @@ function onHashChange() {
     each(toAdd, addRoute);
   } else {
     each(toRemove, removeRoute);
-    each(toAdd, addRouteThenFitBounds);
+    each(toAdd, addRoute);
   }
 }
 
