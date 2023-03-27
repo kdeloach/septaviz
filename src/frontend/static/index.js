@@ -448,15 +448,30 @@ function getUrl() {
   return (parts && parts[1]) || "";
 }
 
-function getBusRoutesFromUrl(url) {
+function parseUrl(url) {
   var parts = url.split(",");
-  return parts.filter(function (item) {
-    return item.length > 0 && item !== "locate" && item !== "reload";
+  if (parts.length === 0) {
+    return { cmd: null, args: [] };
+  }
+
+  var cmd = null;
+  if (parts[0] === "locate" || parts[0] === "reload") {
+    cmd = parts.shift();
+  }
+
+  var args = parts.filter(function (item) {
+    return item.length > 0;
   });
+
+  return { cmd: cmd, args: args };
 }
 
 function getActiveBusRoutes() {
-  return getBusRoutesFromUrl(App.url);
+  var currentCmd = parseUrl(App.url);
+  if (currentCmd.cmd) {
+    return [];
+  }
+  return currentCmd.args;
 }
 
 function getUrlWithRoute(routeNum) {
@@ -508,27 +523,31 @@ function onHashChange() {
   var nextUrl = getUrl();
   App.url = nextUrl;
 
-  var prevRoutes = getBusRoutesFromUrl(prevUrl);
-  var nextRoutes = getBusRoutesFromUrl(nextUrl);
+  var prevCmd = parseUrl(prevUrl);
+  var nextCmd = parseUrl(nextUrl);
+
+  var prevRoutes = prevCmd.args;
+  var nextRoutes = nextCmd.args;
 
   var toAdd = difference(nextRoutes, prevRoutes);
   var toRemove = difference(prevRoutes, nextRoutes);
 
-  if (nextUrl === "locate") {
+  if (nextCmd.cmd === "locate") {
     hideBusList();
     hideTrolleyList();
     each(toRemove, removeRoute);
+
     App.map.leafletMap.locate({
       watch: false,
       setView: true,
       maxZoom: 16,
     });
-  } else if (prevUrl === "locate") {
+  } else if (prevCmd.cmd === "locate") {
     each(toAdd, addRoute);
-  } else if (nextUrl === "reload") {
+  } else if (nextCmd.cmd === "reload") {
     var url = "#" + toRemove.join(",");
     setUrl(url);
-  } else if (prevUrl === "reload") {
+  } else if (prevCmd.cmd === "reload") {
     each(toAdd, addRoute);
   } else {
     each(toRemove, removeRoute);
@@ -545,7 +564,8 @@ function init() {
   $(window).on("hashchange", onHashChange);
   onHashChange();
 
-  if (getActiveBusRoutes().length > 0 || App.url === "locate") {
+  var currentCmd = parseUrl(App.url);
+  if (currentCmd.cmd === "locate" || currentCmd.args.length > 0) {
     hideBusList();
   }
 }
